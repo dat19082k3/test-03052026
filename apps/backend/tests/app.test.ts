@@ -1,19 +1,16 @@
 import request from 'supertest';
-import app, { pool } from './index';
+import app from '../src/app';
+import { pool } from '../src/config/database';
 
-// Mock the pg Pool using pg-mem if needed or simply mock the query method
-jest.mock('pg', () => {
+// Mock the pg Pool
+jest.mock('../src/config/database', () => {
   const mPool = {
     query: jest.fn(),
   };
-  return { Pool: jest.fn(() => mPool) };
+  return { pool: mPool };
 });
 
 describe('API Routes', () => {
-  afterAll(async () => {
-    // any cleanup
-  });
-
   it('GET / should return Welcome to the API', async () => {
     const res = await request(app).get('/');
     expect(res.status).toBe(200);
@@ -21,7 +18,6 @@ describe('API Routes', () => {
   });
 
   it('GET /health should return status ok when db is reachable', async () => {
-    // Mock the specific pg pool instance method
     (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [{ now: '2026-05-03T00:00:00.000Z' }] });
     
     const res = await request(app).get('/health');
