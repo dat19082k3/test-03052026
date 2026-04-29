@@ -9,10 +9,16 @@ router.post('/vouchers', validate(createVoucherSchema), inventoryController.crea
 
 router.get('/vouchers', inventoryController.getVouchers);
 
+router.get('/vouchers/template', inventoryController.getVoucherTemplate);
+
 router.get('/vouchers/:id', inventoryController.getVoucherById);
 
 router.put('/vouchers/:id', validate(updateVoucherSchema), inventoryController.updateVoucher);
 
 router.delete('/vouchers/:id', inventoryController.deleteVoucher);
+
+router.post('/vouchers/:id/post', inventoryController.postVoucher);
+router.post('/vouchers/:id/cancel', inventoryController.cancelVoucher);
+router.post('/vouchers/:id/replace', validate(createVoucherSchema), inventoryController.replaceVoucher);
 
 export default router;

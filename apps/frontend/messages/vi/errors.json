@@ -12,7 +12,10 @@
   "VOUCHER": {
     "NOT_FOUND": "Không tìm thấy phiếu nhập kho.",
     "DUPLICATE_NUMBER": "Số phiếu này đã tồn tại.",
-    "ALREADY_DELETED": "Phiếu nhập kho này đã bị xóa."
+    "INVALID_STATE": "Phiếu nhập kho không ở trạng thái hợp lệ để thực hiện thao tác này.",
+    "ALREADY_POSTED": "Phiếu nhập kho này đã được duyệt.",
+    "ALREADY_CANCELLED": "Phiếu nhập kho này đã được hủy.",
+    "NOT_CANCELLED": "Phiếu nhập kho này chưa được hủy."    
   },
   "WAREHOUSE": {
     "NOT_FOUND": "Không tìm thấy kho hàng.",

@@ -41,7 +41,12 @@ export interface InventoryVoucher {
   updated_by?: string | null; // UUID
   created_at: string | Date;
   updated_at: string | Date;
-  deleted_at?: string | Date | null;
+  
+  status: 'draft' | 'posted' | 'cancelled';
+  replaced_from_id?: string | null; // UUID references inventory_vouchers(id)
+  cancelled_at?: string | Date | null;
+  cancelled_by?: string | null; // UUID
+  cancel_reason?: string | null;
 }
 
 export interface InventoryVoucherDetail {
@@ -124,6 +129,14 @@ export interface CreateInventoryVoucherDto {
 
 export interface UpdateInventoryVoucherDto extends Partial<CreateInventoryVoucherDto> {
   // Option to completely replace details or just update fields of the master voucher
+}
+
+export interface CancelInventoryVoucherDto {
+  reason: string;
+}
+
+export interface ReplaceInventoryVoucherDto extends CreateInventoryVoucherDto {
+  // same as create, but we'll link it to a cancelled voucher in the controller/service
 }
 
 // Validation schemas (Zod)

@@ -1,110 +1,94 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
 import { AppError } from '../utils/app-error';
 import {
-  ApiSuccessResponse,
-  ApiErrorResponse,
-  PaginatedResponse,
-  InventoryVoucher,
   ErrorCode,
 } from '@repo/types';
+import * as inventoryService from '../services/inventory.service';
 
-/**
- * Controller for Inventory API endpoints.
- * Uses AppError for business errors — never exposes raw messages.
- */
 export class InventoryController {
 
-  public async createVoucher(
-    req: Request,
-    res: Response<ApiSuccessResponse<InventoryVoucher>>,
-    next: NextFunction,
-  ) {
+  public async getVoucherTemplate(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: Implement create logic, transaction with voucher & details
-      res.status(201).json({
-        status: 'success',
-        data: {} as InventoryVoucher,
-      });
+      const result = await inventoryService.getVoucherTemplate();
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
-      logger.error({ err: error }, 'Error creating inventory voucher');
-      next(new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
 
-  public async getVouchers(
-    req: Request,
-    res: Response<PaginatedResponse<InventoryVoucher>>,
-    next: NextFunction,
-  ) {
+  public async createVoucher(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: Implement pagination and filtering logic
-      res.status(200).json({
-        status: 'success',
-        data: [],
-        meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
-      });
+      const result = await inventoryService.createVoucher(req.body);
+      res.status(201).json({ status: 'success', data: result });
     } catch (error) {
-      logger.error({ err: error }, 'Error fetching inventory vouchers');
-      next(new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
 
-  public async getVoucherById(
-    req: Request<{ id: string }>,
-    res: Response<ApiSuccessResponse<InventoryVoucher>>,
-    next: NextFunction,
-  ) {
+  public async getVouchers(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      // TODO: Retrieve voucher, throw AppError if not found
-      // throw new AppError(ErrorCode.VOUCHER.NOT_FOUND, 404);
-      res.status(200).json({
-        status: 'success',
-        data: {} as InventoryVoucher,
-      });
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const result = await inventoryService.getVouchers(page, limit);
+      res.status(200).json({ status: 'success', ...result });
     } catch (error) {
-      if (error instanceof AppError) return next(error);
-      logger.error({ err: error }, 'Error fetching inventory voucher');
-      next(new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
 
-  public async updateVoucher(
-    req: Request<{ id: string }>,
-    res: Response<ApiSuccessResponse<InventoryVoucher>>,
-    next: NextFunction,
-  ) {
+  public async getVoucherById(req: Request<{ id: string }>, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      // TODO: Update voucher logic
-      res.status(200).json({
-        status: 'success',
-        data: {} as InventoryVoucher,
-      });
+      const result = await inventoryService.getVoucherById(req.params.id);
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
-      if (error instanceof AppError) return next(error);
-      logger.error({ err: error }, 'Error updating inventory voucher');
-      next(new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
 
-  public async deleteVoucher(
-    req: Request<{ id: string }>,
-    res: Response<ApiSuccessResponse<null>>,
-    next: NextFunction,
-  ) {
+  public async updateVoucher(req: Request<{ id: string }>, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      // TODO: Soft delete voucher logic
-      res.status(200).json({
-        status: 'success',
-        data: null,
-      });
+      const result = await inventoryService.updateVoucher(req.params.id, req.body);
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
-      if (error instanceof AppError) return next(error);
-      logger.error({ err: error }, 'Error deleting inventory voucher');
-      next(new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async deleteVoucher(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+    try {
+      await inventoryService.deleteDraftVoucher(req.params.id);
+      res.status(200).json({ status: 'success', data: null });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async postVoucher(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+    try {
+      await inventoryService.postVoucher(req.params.id);
+      res.status(200).json({ status: 'success', data: null });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async cancelVoucher(req: Request<{ id: string }, any, { reason: string }>, res: Response, next: NextFunction) {
+    try {
+      // Typically cancelled_by would come from req.user.id if auth is enabled
+      await inventoryService.cancelVoucher(req.params.id, req.body.reason);
+      res.status(200).json({ status: 'success', data: null });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async replaceVoucher(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+    try {
+      // Uses the same dto as create
+      const result = await inventoryService.replaceVoucher(req.params.id, req.body);
+      res.status(201).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
 }

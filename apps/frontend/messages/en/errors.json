@@ -12,7 +12,10 @@
   "VOUCHER": {
     "NOT_FOUND": "The inventory voucher was not found.",
     "DUPLICATE_NUMBER": "A voucher with this number already exists.",
-    "ALREADY_DELETED": "This voucher has already been deleted."
+    "INVALID_STATE": "The inventory voucher is not in a valid state for this operation.",
+    "ALREADY_POSTED": "This inventory voucher has already been posted.",
+    "ALREADY_CANCELLED": "This inventory voucher has already been cancelled.",
+    "NOT_CANCELLED": "This inventory voucher has not been cancelled."
   },
   "WAREHOUSE": {
     "NOT_FOUND": "The warehouse was not found.",

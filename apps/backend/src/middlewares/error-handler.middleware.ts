@@ -3,11 +3,6 @@ import { ErrorCode } from '@repo/types';
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 
-/**
- * Global error handler middleware.
- * - AppError → structured response with code + errors
- * - Unknown errors → logged internally, returns COMMON.INTERNAL_ERROR only
- */
 export const errorHandler = (
   err: Error,
   _req: Request,
