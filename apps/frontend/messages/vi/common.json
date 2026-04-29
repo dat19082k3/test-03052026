@@ -1,0 +1,22 @@
+{
+  "appName": "Quản lý kho",
+  "actions": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Sửa",
+    "create": "Tạo mới",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "export": "Xuất",
+    "import": "Nhập",
+    "confirm": "Xác nhận",
+    "back": "Quay lại"
+  },
+  "status": {
+    "loading": "Đang tải...",
+    "saving": "Đang lưu...",
+    "success": "Thao tác thành công.",
+    "noData": "Không có dữ liệu."
+  }
+}

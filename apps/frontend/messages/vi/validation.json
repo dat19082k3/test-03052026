@@ -1,0 +1,17 @@
+{
+  "REQUIRED": "{field} là bắt buộc.",
+  "INVALID_FORMAT": "{field} có định dạng không hợp lệ.",
+  "INVALID_TYPE": "{field} có kiểu dữ liệu không hợp lệ. Yêu cầu {expected}.",
+  "TOO_SHORT": "{field} phải có ít nhất {min} ký tự.",
+  "TOO_LONG": "{field} không được vượt quá {max} ký tự.",
+  "TOO_SMALL": "{field} phải lớn hơn hoặc bằng {min}.",
+  "TOO_BIG": "{field} không được vượt quá {max}.",
+  "INVALID_UUID": "{field} phải là định danh hợp lệ.",
+  "INVALID_DATE": "{field} phải là ngày hợp lệ.",
+  "FUTURE_DATE": "{field} không được là ngày trong tương lai.",
+  "POSITIVE_REQUIRED": "{field} phải lớn hơn 0.",
+  "NON_NEGATIVE_REQUIRED": "{field} phải từ 0 trở lên.",
+  "INTEGER_REQUIRED": "{field} phải là số nguyên.",
+  "ARRAY_MIN": "Cần ít nhất {min} mục.",
+  "NOT_EMPTY": "{field} không được để trống."
+}

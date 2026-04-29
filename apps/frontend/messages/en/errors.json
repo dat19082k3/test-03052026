@@ -1,0 +1,26 @@
+{
+  "COMMON": {
+    "INTERNAL_ERROR": "An unexpected error occurred. Please try again later.",
+    "UNAUTHORIZED": "You are not authorized. Please log in.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "RATE_LIMITED": "Too many requests. Please try again later."
+  },
+  "VALIDATION": {
+    "FAILED": "Please check the form and correct the errors below."
+  },
+  "VOUCHER": {
+    "NOT_FOUND": "The inventory voucher was not found.",
+    "DUPLICATE_NUMBER": "A voucher with this number already exists.",
+    "ALREADY_DELETED": "This voucher has already been deleted."
+  },
+  "WAREHOUSE": {
+    "NOT_FOUND": "The warehouse was not found.",
+    "INACTIVE": "This warehouse is currently inactive."
+  },
+  "ITEM": {
+    "NOT_FOUND": "The inventory item was not found."
+  },
+  "NETWORK": "Unable to connect to the server. Please check your network.",
+  "UNKNOWN": "An unexpected error occurred."
+}

@@ -60,3 +60,81 @@ export interface InventoryVoucherDetail {
   
   sort_order?: number | null;
 }
+
+export interface ApiSuccessResponse<T> {
+  status: 'success';
+  data: T;
+}
+
+export interface ApiFieldError {
+  field: string;
+  code: string;
+  params?: Record<string, string | number>;
+}
+
+export interface ApiErrorResponse {
+  status: 'error';
+  code: string;
+  errors?: ApiFieldError[];
+}
+
+export interface PaginatedResponse<T> {
+  status: 'success';
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateInventoryVoucherDetailDto {
+  item_id: string; // UUID
+  item_code_snapshot?: string;
+  item_name_snapshot?: string;
+  unit_snapshot?: string;
+  quantity_by_doc: number;
+  quantity_actual: number;
+  unit_price: number;
+}
+
+export interface CreateInventoryVoucherDto {
+  voucher_number: string;
+  voucher_date: string; // ISO Date String
+  
+  unit_name?: string;
+  department_name?: string;
+  
+  debit_account?: string;
+  credit_account?: string;
+  
+  deliverer_name?: string;
+  warehouse_id: string; // UUID
+  location?: string;
+  
+  reference_source?: string;
+  original_docs_count?: number;
+  
+  total_amount_numeric: number;
+  total_amount_words?: string;
+
+  details: CreateInventoryVoucherDetailDto[];
+}
+
+export interface UpdateInventoryVoucherDto extends Partial<CreateInventoryVoucherDto> {
+  // Option to completely replace details or just update fields of the master voucher
+}
+
+// Validation schemas (Zod)
+export {
+  createVoucherSchema,
+  updateVoucherSchema,
+  voucherDetailSchema,
+  type CreateVoucherInput,
+  type UpdateVoucherInput,
+  type VoucherDetailInput,
+} from './validations/inventory.validation';
+
+// Error codes
+export { ErrorCode, type ErrorCodeType } from './errors/error-codes';

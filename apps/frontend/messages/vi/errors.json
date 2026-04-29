@@ -1,0 +1,26 @@
+{
+  "COMMON": {
+    "INTERNAL_ERROR": "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.",
+    "UNAUTHORIZED": "Bạn chưa đăng nhập. Vui lòng đăng nhập.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
+    "NOT_FOUND": "Không tìm thấy tài nguyên yêu cầu.",
+    "RATE_LIMITED": "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+  },
+  "VALIDATION": {
+    "FAILED": "Vui lòng kiểm tra và sửa các lỗi bên dưới."
+  },
+  "VOUCHER": {
+    "NOT_FOUND": "Không tìm thấy phiếu nhập kho.",
+    "DUPLICATE_NUMBER": "Số phiếu này đã tồn tại.",
+    "ALREADY_DELETED": "Phiếu nhập kho này đã bị xóa."
+  },
+  "WAREHOUSE": {
+    "NOT_FOUND": "Không tìm thấy kho hàng.",
+    "INACTIVE": "Kho hàng này hiện không hoạt động."
+  },
+  "ITEM": {
+    "NOT_FOUND": "Không tìm thấy vật tư/hàng hóa."
+  },
+  "NETWORK": "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.",
+  "UNKNOWN": "Đã xảy ra lỗi không mong muốn."
+}

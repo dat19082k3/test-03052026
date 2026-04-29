@@ -7,6 +7,8 @@ import swaggerUi from 'swagger-ui-express';
 import { logger } from './utils/logger';
 import { pool } from './config/database';
 import { swaggerSpec } from './config/swagger';
+import inventoryRoutes from './routes/inventory.routes';
+import { errorHandler } from './middlewares/error-handler.middleware';
 
 const app = express();
 
@@ -43,71 +45,9 @@ app.use(limiter);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
+app.use('/api/v1/inventory', inventoryRoutes);
 
-/**
- * @swagger
- * /:
- *   get:
- *     summary: Welcome endpoint
- *     description: Returns a simple welcome message
- *     responses:
- *       200:
- *         description: A JSON object containing the welcome message
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Welcome to the API
- */
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'Welcome to the API' });
-});
-
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     description: Checks database connectivity and returns server time
- *     responses:
- *       200:
- *         description: Database is reachable
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                 time:
- *                   type: string
- *                   format: date-time
- *       500:
- *         description: Database connection failed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: error
- *                 message:
- *                   type: string
- *                   example: Database connection failed
- */
-app.get('/health', async (req: Request, res: Response) => {
-  try {
-    const dbRes = await pool.query('SELECT NOW()');
-    res.json({ status: 'ok', time: dbRes.rows[0].now });
-  } catch (error) {
-    logger.error({ err: error }, 'Database connection failed');
-    res.status(500).json({ status: 'error', message: 'Database connection failed' });
-  }
-});
+// Global error handler (must be last)
+app.use(errorHandler);
 
 export default app;
