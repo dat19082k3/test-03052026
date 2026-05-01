@@ -1,0 +1,74 @@
+{
+  "appName": "Inventory Management",
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "confirm": "Confirm",
+    "back": "Back"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Operation completed successfully.",
+    "noData": "No data available."
+  },
+  "layout": {
+    "brand": "Demo",
+    "searchPlaceholder": "Search...",
+    "themeToggle": "Toggle theme",
+    "languageToggle": "Switch language",
+    "footerCopyright": "©{year} {brand}. Enterprise accounting management system.",
+    "footerSupport": "Support",
+    "footerDocs": "Documentation",
+    "footerTerms": "Terms",
+    "loading": {
+      "title": "Preparing your workspace",
+      "description": "Enhancing your experience with the latest updates and personalized content."
+    },
+    "nav": {
+      "home": "Home",
+      "inventory": "Inventory",
+      "vouchers": "Inventory Vouchers",
+      "warehouses": "Warehouses",
+      "items": "Items"
+    },
+    "dashboard": {
+      "overview": "Overview",
+      "overviewDesc": "Charts and aggregate statistics.",
+      "recentVouchers": "Recent Vouchers",
+      "recentVouchersDesc": "Latest inventory vouchers.",
+      "warehouseStats": "Warehouse Statistics",
+      "warehouseStatsDesc": "Monthly inventory analysis.",
+      "activity": "Activity",
+      "activityDesc": "Recent operation history."
+    }
+  },
+  "errors": {
+    "403": {
+      "title": "Access Denied",
+      "description": "You do not have permission to access this page. Please contact your administrator if you believe this is a mistake."
+    },
+    "404": {
+      "title": "Page Not Found",
+      "description": "The page you are looking for doesn't exist, has been moved, or is temporarily unavailable."
+    },
+    "500": {
+      "title": "Internal Server Error",
+      "description": "Something went wrong on our end. Our team has been notified. Please try again later."
+    },
+    "503": {
+      "title": "Service Unavailable",
+      "description": "The service is temporarily down for maintenance. Please check back shortly."
+    },
+    "backToHome": "Back to Home",
+    "tryAgain": "Try Again",
+    "goBack": "Go Back"
+  }
+}

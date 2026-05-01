@@ -1,0 +1,74 @@
+{
+  "appName": "Quản lý kho",
+  "actions": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Sửa",
+    "create": "Tạo mới",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "export": "Xuất",
+    "import": "Nhập",
+    "confirm": "Xác nhận",
+    "back": "Quay lại"
+  },
+  "status": {
+    "loading": "Đang tải...",
+    "saving": "Đang lưu...",
+    "success": "Thao tác thành công.",
+    "noData": "Không có dữ liệu."
+  },
+  "layout": {
+    "brand": "Demo",
+    "searchPlaceholder": "Tìm kiếm...",
+    "themeToggle": "Chuyển đổi giao diện",
+    "languageToggle": "Chuyển đổi ngôn ngữ",
+    "footerCopyright": "©{year} {brand}. Hệ thống quản lý kế toán doanh nghiệp.",
+    "footerSupport": "Hỗ trợ",
+    "footerDocs": "Tài liệu",
+    "footerTerms": "Điều khoản",
+    "loading": {
+      "title": "Đang chuẩn bị không gian làm việc",
+      "description": "Nâng cao trải nghiệm của bạn với các cập nhật mới nhất và nội dung được cá nhân hóa."
+    },
+    "nav": {
+      "home": "Trang chủ",
+      "inventory": "Kho hàng",
+      "vouchers": "Phiếu nhập kho",
+      "warehouses": "Danh mục kho",
+      "items": "Danh mục hàng hóa"
+    },
+    "dashboard": {
+      "overview": "Tổng quan",
+      "overviewDesc": "Biểu đồ và số liệu tổng hợp.",
+      "recentVouchers": "Phiếu nhập kho gần đây",
+      "recentVouchersDesc": "Danh sách phiếu nhập kho mới nhất.",
+      "warehouseStats": "Thống kê kho",
+      "warehouseStatsDesc": "Phân tích tồn kho theo tháng.",
+      "activity": "Hoạt động",
+      "activityDesc": "Lịch sử thao tác gần đây."
+    }
+  },
+  "errors": {
+    "403": {
+      "title": "Từ Chối Truy Cập",
+      "description": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."
+    },
+    "404": {
+      "title": "Không Tìm Thấy Trang",
+      "description": "Trang bạn đang tìm kiếm không tồn tại, đã bị di chuyển hoặc tạm thời không có sẵn."
+    },
+    "500": {
+      "title": "Lỗi Máy Chủ Nội Bộ",
+      "description": "Đã xảy ra lỗi từ phía hệ thống. Đội ngũ kỹ thuật đã được thông báo. Vui lòng thử lại sau."
+    },
+    "503": {
+      "title": "Dịch Vụ Không Sẵn Sàng",
+      "description": "Hệ thống đang tạm ngưng để bảo trì. Vui lòng quay lại sau một lát."
+    },
+    "backToHome": "Về Trang Chủ",
+    "tryAgain": "Thử Lại",
+    "goBack": "Quay Lại"
+  }
+}
