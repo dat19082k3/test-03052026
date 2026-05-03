@@ -110,10 +110,7 @@ export async function findVouchers(options: FindVouchersOptions) {
     conditions.push(`status = ANY($${paramIdx})`);
     values.push(statusList);
     paramIdx++;
-  } else {
-    // Default filter: exclude explicitly cancelled vouchers to reduce clutter
-    conditions.push(`status != 'cancelled'`);
-  }
+  } 
 
   if (startDate) {
     conditions.push(`voucher_date >= $${paramIdx}`);

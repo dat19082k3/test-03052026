@@ -155,7 +155,6 @@ export async function getVouchers(
     endDate = to.includes('T') ? fromZonedTime(addMinutes(toDate, 1), safeTz).toISOString() : fromZonedTime(startOfDay(addDays(toDate, 1)), safeTz).toISOString();
   }
 
-
   const { data, total } = await model.findVouchers({
     ...rest,
     startDate,
