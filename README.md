@@ -1,84 +1,124 @@
 # Inventory Voucher System (Monorepo)
 
-This project is a modern Full-Stack Inventory Management System organized as a monorepo using **Turborepo**. It is designed for production readiness with automated migrations, background job processing, and containerized deployment.
+This project is a modern, enterprise-grade **Inventory Management System** designed for scalability, reliability, and ease of deployment. It utilizes a monorepo structure powered by **Turborepo** and is built on a high-performance technology stack including Next.js, Express, BullMQ, and PostgreSQL.
+
+---
 
 ## 🏗 System Architecture
 
-The application follows a modular, distributed architecture:
+The application follows a distributed architecture to ensure high availability and responsiveness.
 
-- **Frontend (`apps/frontend`)**: A High-performance **Next.js** application. Acts as the primary user interface and a BFF (Backend for Frontend).
-- **Backend (`apps/backend`)**: A robust **Node.js/Express** API service handling business logic, transactions, and inventory rules.
-- **Worker (`apps/worker`)**: A background processor using **BullMQ** for long-running tasks like Excel import/export to keep the main API responsive.
+```mermaid
+graph TD
+    Client[Web Browser] <--> Frontend[Next.js App / BFF]
+    Frontend <--> Backend[Express API Service]
+    Backend <--> DB[(PostgreSQL)]
+    Backend <--> Redis[Redis Broker]
+    Worker[BullMQ Worker] <--> Redis
+    Worker <--> DB
+    Worker <--> S3[AWS S3 / LocalStack]
+    Backend <--> S3
+```
+
+### Components:
+- **Frontend (`apps/frontend`)**: A high-performance **Next.js** application serving as both the direct UI and a **Backend-for-Frontend (BFF)**.
+- **Backend (`apps/backend`)**: Core business logic service built with **Express**. Handles transactions, inventory rules, and API orchestrations.
+- **Worker (`apps/worker`)**: Distributed task processor using **BullMQ**. Processes heavy workloads like large-scale Excel exports and imports asynchronously.
 - **Shared Packages (`packages/*`)**:
-    - `@repo/db`: Centralized database schema, repositories, and migrations.
-    - `@repo/types`: Shared TypeScript definitions across all apps.
-    - `@repo/ui`: Shared design system components.
-- **Infrastructure**:
-    - **PostgreSQL**: Primary relational database.
-    - **Redis**: Fast cache and message broker for BullMQ.
+    - `@repo/db`: Centralized database schema, Prisma-like repositories, and migration scripts.
+    - `@repo/types`: Unified TypeScript definitions shared across all services.
+    - `@repo/eslint-config`: Shared linting rules to maintain code quality.
+    - `@repo/typescript-config`: Centralized TypeScript configurations.
 
 ---
 
-## 🚀 Environment Setup
+## 🛠 Tech Stack
 
-The project uses a centralized environment variable management system.
-
-1.  **Requirement**: Node.js 20+, Docker & Docker Compose.
-2.  **Configuration**: Copy the root template to create your `.env` file:
-    ```bash
-    cp .env.example .env
-    ```
-    Populate the `DB_PASSWORD` and `REDIS_PASSWORD` variables as they are mandatory for security.
+- **Frontend**: Next.js 14 (App Router), Tailwind CSS, TanStack Query, ShadcnUI.
+- **Backend**: Node.js, Express, TypeScript, Zod (Validation).
+- **Worker**: BullMQ.
+- **Storage**: PostgreSQL (Primary DB), Redis (Queue/Cache), AWS S3 (File Storage).
+- **Tooling**: Turborepo, Docker, ESLint, Prettier.
 
 ---
 
-## 🛠 Development Guide
+## 🚀 Getting Started
 
-### Running Locally (NPM)
-To run the entire stack locally for development:
+### Prerequisites
+- **Node.js**: v20 or higher.
+- **Docker**: For running database, redis, and S3 local services.
+- **NPM**: Package manager.
 
-1.  **Install Dependencies**:
+### Local Development Setup
+
+1.  **Clone the repository and install dependencies**:
     ```bash
     npm install
     ```
-2.  **Run Development Mode**:
+
+2.  **Environment Configuration**:
+    Copy the example environment file and fill in the required secrets:
+    ```bash
+    cp .env.example .env
+    ```
+    > [!IMPORTANT]
+    > Ensure `DB_PASSWORD`, `REDIS_PASSWORD`, and `AWS/S3` credentials are correctly configured.
+
+3.  **Start Infrastructure**:
+    Using Docker Compose to spin up necessary services:
+    ```bash
+    docker compose up -d postgres redis localstack
+    ```
+
+4.  **Run Development Environment**:
     ```bash
     npm run dev
     ```
-    Turbo will concurrently start the Frontend (3000), Backend (4000), and Worker.
-
-### Running with Docker (Production Ready)
-The Docker setup is hardened for security and production-like behavior:
-
-1.  **Build and Start**:
-    ```bash
-    docker compose up --build -d
-    ```
-2.  **Automated Migrations**: The system includes a `migration` service that automatically updates your database schema before the backend or worker apps start.
-3.  **Observability**: Logs are limited to 10MB per file with a 3-file rotation to prevent disk exhaustion.
-4.  **Healthchecks**: All services include robust health monitoring.
+    This starts all applications concurrently using Turborepo.
+    - Frontend: `http://localhost:3000`
+    - Backend: `http://localhost:4000`
 
 ---
 
-## 💾 Database Management
+## 💾 Database & Migrations
 
-- **Migrations**: Managed via `node-pg-migrate`. They run automatically in Docker.
-- **Seeding Data**: To populate the database with test data (e.g., 1 million records):
+Database operations are centralized in `packages/db`.
+
+- **Run Migrations**: `npm run migrate:up` (Runs automatically in Docker).
+- **Seed Data**: To test with large datasets (e.g., 1 million vouchers):
     ```bash
+    # Via Docker
     docker compose run --rm backend npm run seed:1m
     ```
 
 ---
 
-## 🧪 Testing
+## 📦 Production Deployment
 
-The project emphasizes reliability through high test coverage (Jest/Supertest).
+### Dockerized Setup
+The project is optimized for containerized environments. To build and start the full production stack:
 
 ```bash
-# Run backend tests
-npm run test -w backend
+docker compose up --build -d
+```
 
-# Unified linting and type checking
+### Key Production Features:
+- **Health Checks**: Comprehensive health monitoring for all services.
+- **Resource Limits**: Configured to prevent memory leaks and CPU exhaustion.
+- **Log Rotation**: Automated log management to preserve disk space.
+- **Network Security**: Database and Redis are isolated from the public internet.
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+We maintain high standards through rigorous testing and linting.
+
+```bash
+# Run all tests
+npm run test
+
+# Linting & Type Checking
 npm run lint
 npm run check-types
 ```
@@ -86,6 +126,11 @@ npm run check-types
 ---
 
 ## 🔒 Security Best Practices
-- **Network Isolation**: Only Frontend and Backend ports are exposed. Database and Redis are isolated within an internal Docker network.
-- **Secret Management**: No hardcoded secrets; mandatory environment variable enforcement.
-- **Graceful Failover**: Services use `restart: unless-stopped` and wait for dependencies to be healthy.
+- **Environment Isolation**: Production secrets are never committed to the repository.
+- **Input Validation**: Strict schema validation using Zod on all API boundaries.
+- **Graceful Shutdown**: Services handle `SIGTERM` and `SIGINT` to close connections safely.
+
+---
+
+## 📄 License
+Internal proprietary project. All rights reserved.

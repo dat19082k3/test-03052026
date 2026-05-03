@@ -1,114 +1,117 @@
 # Inventory Worker
 
-A background worker service built with **BullMQ** to handle asynchronous tasks for the inventory system.
+A high-performance background processing service built with **BullMQ** and **TypeScript**. This service handles asynchronous, resource-intensive tasks for the Inventory Management System, ensuring the main API remains responsive and stable.
 
-## Overview
+---
 
-The worker processes jobs from the `inventory-excel` queue. Currently, it supports:
-- **Exporting Vouchers**: Generates Excel files from inventory voucher data based on filters (status, date range).
-- **Importing Vouchers**: Processes Excel files to bulk import or update inventory vouchers.
+## 🚀 Key Features
 
-## Tech Stack
+- **Asynchronous Task Processing**: Handles long-running jobs outside the request-response cycle.
+- **Reliable Queuing**: Built on top of **Redis** via BullMQ for guaranteed job delivery and re-attempts.
+- **Excel Orchestration**: Robust processing of large Excel files for bulk data operations.
+- **Distributed Scaling**: Multiple worker instances can be deployed to scale horizontally.
 
-- **Runtime**: Node.js with TypeScript
-- **Task Queue**: [BullMQ](https://docs.bullmq.io/) (Redis-backed)
-- **Database**: PostgreSQL (via shared repository)
-- **Excel Processing**: [ExcelJS](https://github.com/exceljs/exceljs)
+---
+
+## 🛠 Tech Stack
+
+- **Runtime**: Node.js 20+ (TypeScript)
+- **Queue Management**: [BullMQ](https://docs.bullmq.io/)
+- **Data Stores**: PostgreSQL (Persistence), Redis (Job State)
+- **File Handling**: [ExcelJS](https://github.com/exceljs/exceljs)
+- **Storage Integration**: AWS S3 / LocalStack
 - **Logging**: [Pino](https://github.com/pinojs/pino)
 
-## Prerequisites
+---
 
-- Node.js 20+
-- Redis server
-- PostgreSQL database
+## ⚙️ Configuration
 
-## Setup
+The worker behavior is controlled via environment variables.
 
-1.  **Environment Variables**:
-    Create a `.env` file based on `.env.example`:
-    ```bash
-    cp .env.example .env
-    ```
+### General Settings
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `NODE_ENV` | Environment (development/production) | `development` |
+| `CONCURRENCY` | Number of jobs to process simultaneously | `1` |
+| `REDIS_HOST` | Redis server hostname | `localhost` |
+| `REDIS_PORT` | Redis server port | `6379` |
+| `DATABASE_URL` | PostgreSQL connection string | - |
 
-2.  **Configuration**:
-    Ensure the following variables are set:
-    - `REDIS_HOST`, `REDIS_PORT`: Connection details for Redis.
-    - `DATABASE_URL`: Connection string for PostgreSQL.
-    - `CONCURRENCY`: Number of jobs to process in parallel (default: 1).
+### S3 / Cloud Storage Settings
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `S3_BUCKET` | Destination bucket for exports/imports | - |
+| `S3_ENDPOINT` | Custom endpoint (e.g., LocalStack) | - |
+| `AWS_REGION` | AWS Region | `ap-southeast-1` |
 
-## Development
+---
 
-Run with hot-reload:
+## 🏃‍♂️ Development & Operations
+
+### Local Development
 ```bash
+# Install dependencies (from root)
+npm install
+
+# Start with hot-reload
 npm run dev
 ```
 
-Build the project:
+### Production Build
 ```bash
+# Build the TypeScript project
 npm run build
+
+# Start the optimized worker
+npm run start
 ```
 
-## Production
+---
 
-Start the built service:
-```bash
-npm start
-```
+## 📋 Job Types & Logic
 
-## Job Types
+The worker listens on the `inventory-excel` queue for the following job types:
 
-| Job Name | Description | Data Parameters |
-| :--- | :--- | :--- |
-| `export-vouchers` | Generates Excel export | `status`, `startDate`, `endDate` |
-| `import-vouchers` | Processes Excel import | `filePath` |
+### 1. `export-vouchers`
+Generates a downloadable Excel file of inventory vouchers based on specific filters.
+- **Input Content**: `filters` (status, dateRange), `requestedBy`.
+- **Outcome**: Generates `.xlsx` file, uploads to S3, and marks export as completed.
 
-## Monitoring
+### 2. `import-vouchers`
+Processes an uploaded Excel file to update the inventory system.
+- **Input Content**: `s3Key` or `filePath`.
+- **Outcome**: Validates data, performs bulk updates in DB, and reports success/failure count.
 
-The worker logs its activities using Pino. In development, logs are formatted with `pino-pretty`. In production, they are output as JSON for ingestion by log management systems.
+---
 
-## Cấu hình AWS S3 Local (LocalStack)
+## ☁️ Local S3 Simulation (LocalStack)
 
-Để phát triển và kiểm thử các chức năng lưu trữ S3 trên môi trường local, bạn có thể sử dụng [LocalStack](https://github.com/localstack/localstack) để giả lập AWS S3.
+For local development, we use **LocalStack** to emulate AWS S3.
 
-### Cài đặt LocalStack
-
-1. **Cài đặt Docker** (nếu chưa có): https://docs.docker.com/get-docker/
-2. **Chạy LocalStack bằng Docker:**
+### Setup Steps:
+1. **Ensure LocalStack is running**:
    ```bash
-   docker run --rm -it -p 4566:4566 -p 4571:4571 localstack/localstack
+   # If using the project's docker-compose.yml
+   docker compose up -d localstack
    ```
-   Hoặc dùng docker-compose:
-   ```yaml
-   services:
-     localstack:
-       image: localstack/localstack
-       ports:
-         - "4566:4566"
-       environment:
-         - SERVICES=s3
-         - DEBUG=1
+2. **Configure Environment**:
+   ```env
+   AWS_ACCESS_KEY_ID=test
+   AWS_SECRET_ACCESS_KEY=test
+   S3_ENDPOINT=http://localhost:4566
+   S3_FORCE_PATH_STYLE=true
+   S3_BUCKET=inventory-vouchers
+   ```
+3. **Manual Bucket Creation (If needed)**:
+   ```bash
+   aws --endpoint-url=http://localhost:4566 s3 mb s3://inventory-vouchers
    ```
 
-### Tạo bucket S3 trên LocalStack
+---
 
-```bash
-aws --endpoint-url=http://localhost:4566 s3 mb s3://ten-bucket-cua-ban
-```
+## 📊 Monitoring & Reliability
 
-### Thiết lập biến môi trường cho worker
-
-Thêm vào file `.env`:
-```
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-AWS_REGION=ap-southeast-1
-S3_BUCKET=ten-bucket-cua-ban
-S3_ENDPOINT=http://localhost:4566
-S3_FORCE_PATH_STYLE=true
-```
-
-### Kiểm tra kết nối
-
-Chạy thử upload/download file với endpoint S3 local để đảm bảo worker kết nối thành công.
-
-> Tham khảo thêm: https://docs.localstack.cloud/user-guide/aws/s3/
+- **Health Checks**: The worker reports its status via internal heartbeat.
+- **Graceful Shutdown**: Listens for system signals to finish active jobs before exiting.
+- **Error Handling**: Automatically retries failed jobs with exponential backoff if configured in BullMQ.
+- **Log Management**: Standardized JSON logs via Pino for ELK/CloudWatch integration.

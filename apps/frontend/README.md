@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Inventory Frontend (Next.js)
 
-## Getting Started
+A modern, responsive dashboard for the Inventory Management System. This application serves as both the user-facing interface and a **Backend-for-Frontend (BFF)** layer, providing a secure and optimized experience.
 
-First, run the development server:
+---
 
+## 🚀 Overview
+
+The frontend is built with **Next.js 14** using the **App Router** for optimal performance and SEO. It communicates with the core Backend API while handling session management, routing, and UI-specific orchestrations.
+
+### Core Features:
+- **Comprehensive Dashboard**: Real-time overview of inventory levels and voucher statuses.
+- **Voucher Management**: Full CRUD operations for inventory vouchers with complex filtering.
+- **Bulk Data Operations**: Seamless integration with the Worker service for Excel importing and exporting.
+- **Secure Authentication**: Robust session handling and role-based access control.
+- **Responsive Design**: Mobile-first UI built with Tailwind CSS and ShadcnUI.
+
+---
+
+## 🛠 Tech Stack
+
+- **Framework**: Next.js 14 (TypeScript)
+- **Styling**: Tailwind CSS, Lucide Icons
+- **UI Components**: Radix UI / ShadcnUI
+- **State Management**: TanStack Query (React Query)
+- **Form Handling**: React Hook Form, Zod
+- **Testing**: Vitest, React Testing Library
+
+---
+
+## ⚙️ Environment Variables
+
+Ensure these are set in your `.env` or `.env.local` file:
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Endpoint for the core Backend API | `http://localhost:4000/api` |
+| `NEXTAUTH_SECRET` | Secret for session encryption | - |
+| `NEXTAUTH_URL` | Canonical URL of the application | `http://localhost:3000` |
+
+---
+
+## 🏃‍♂️ Getting Started
+
+### Development
 ```bash
+# Install dependencies (from root)
+npm install
+
+# Start the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+### Production Build
+```bash
+# Build the application
+npm run build
+
+# Start the optimized server
+npm run start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏗 Architecture & BFF
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+This app implements the **Backend-for-Frontend** pattern:
+1. **Server Components**: Directly fetch data for initial page load where possible.
+2. **API Routes**: Proxy complex or sensitive requests to the Backend API.
+3. **Optimized Payloads**: Transfoms raw backend data into UI-ready shapes to reduce client-side overhead.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🧪 Quality Assurance
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Linting**: Standardized via shared `@repo/eslint-config`.
+- **Testing**:
+  ```bash
+  npm run test
+  ```
+- **Type Checking**:
+  ```bash
+  npm run check-types
+  ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📦 Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The frontend is containerized for production. It is recommended to deploy alongside the backend and worker services using the root `docker-compose.yml`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> [!TIP]
+> For best performance, ensure `NEXT_PUBLIC_API_URL` is set to the internal Docker network address when running in production containers.
