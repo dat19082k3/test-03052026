@@ -1,5 +1,27 @@
 {
   "appName": "Inventory Management",
+  "voucherNo": "Voucher No",
+  "date": "Date",
+  "supplier": "Supplier",
+  "totalAmount": "Total Amount",
+  "creator": "Creator",
+  "filters": {
+    "dateRange": "Date Range",
+    "pickDate": "Pick a date",
+    "to": "to",
+    "fromTime": "From time",
+    "toTime": "To time"
+  },
+  "pagination": {
+    "showing": "Showing {from} to {to} of {total} entries",
+    "pageOf": "Page {current} of {total}",
+    "firstPage": "Go to first page",
+    "prevPage": "Go to previous page",
+    "nextPage": "Go to next page",
+    "lastPage": "Go to last page",
+    "rows": "Rows",
+    "max": "Max"
+  },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",
@@ -11,13 +33,21 @@
     "export": "Export",
     "import": "Import",
     "confirm": "Confirm",
-    "back": "Back"
+    "back": "Back",
+    "clearFilters": "Clear Filters",
+    "clear": "Clear",
+    "refresh": "Refresh"
   },
   "status": {
     "loading": "Loading...",
     "saving": "Saving...",
     "success": "Operation completed successfully.",
-    "noData": "No data available."
+    "noData": "No data available.",
+    "status": "Status",
+    "all": "All",
+    "draft": "Draft",
+    "posted": "Posted",
+    "cancelled": "Cancelled"
   },
   "layout": {
     "brand": "Demo",

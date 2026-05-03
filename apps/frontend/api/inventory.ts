@@ -11,9 +11,29 @@ import type {
 const RESOURCE = '/inventory/vouchers';
 
 export const inventoryApi = {
-  // Fetch a paginated list of vouchers
-  getVouchers: (page: number = 1, limit: number = 10): Promise<ApiResult<PaginatedResponse<InventoryVoucher>>> => {
-    return apiClient.get(`${RESOURCE}?page=${page}&limit=${limit}`);
+  getVouchers: (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    tz?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<ApiResult<InventoryVoucher[]>> => {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.append('page', params.page.toString());
+    if (params.limit !== undefined) query.append('limit', params.limit.toString());
+    if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
+    if (params.from) query.append('from', params.from);
+    if (params.to) query.append('to', params.to);
+    if (params.tz) query.append('tz', params.tz);
+    if (params.sortBy) query.append('sortBy', params.sortBy);
+    if (params.sortOrder) query.append('sortOrder', params.sortOrder);
+    
+    return apiClient.get(`${RESOURCE}?${query.toString()}`);
   },
 
   // Fetch a single voucher by ID with details

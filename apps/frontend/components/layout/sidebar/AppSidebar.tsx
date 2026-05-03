@@ -8,15 +8,9 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
 } from '@/components/ui/sidebar';
-import { Badge } from '@/components/ui/badge';
 import { useSidebarNav } from './useSidebarNav';
+import { NavGroup } from './NavGroup';
 
 export function AppSidebar() {
   const { navigation, isActive } = useSidebarNav();
@@ -39,39 +33,11 @@ export function AppSidebar() {
       {/* Navigation */}
       <SidebarContent className="px-2 py-2">
         {navigation.map((group) => (
-          <SidebarGroup key={group.labelKey || 'main'}>
-            {group.labelKey && (
-              <SidebarGroupLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t(group.labelKey)}
-              </SidebarGroupLabel>
-            )}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href)}
-                      tooltip={t(item.titleKey)}
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{t(item.titleKey)}</span>
-                        {item.badge !== undefined && (
-                          <Badge
-                            variant="secondary"
-                            className="ml-auto h-5 min-w-5 justify-center rounded-full text-xs"
-                          >
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavGroup 
+            key={group.labelKey || 'main'} 
+            group={group} 
+            isActive={isActive} 
+          />
         ))}
       </SidebarContent>
 

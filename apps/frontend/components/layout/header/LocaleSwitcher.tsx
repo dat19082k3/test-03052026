@@ -21,8 +21,6 @@ export function LocaleSwitcher() {
     router.refresh();
   }
 
-  console.log(currentLocale);
-
   return (
     <Select value={currentLocale} onValueChange={handleLocaleChange}>
       <SelectTrigger className="h-9 w-auto min-w-[70px] border-none shadow-none focus:ring-0 text-sm font-medium pr-2">

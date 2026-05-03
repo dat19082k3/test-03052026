@@ -1,5 +1,10 @@
 {
   "appName": "Quản lý kho",
+  "voucherNo": "Mã phiếu",
+  "date": "Ngày",
+  "supplier": "Nhà cung cấp",
+  "totalAmount": "Tổng tiền",
+  "creator": "Người tạo",
   "actions": {
     "save": "Lưu",
     "cancel": "Hủy",
@@ -11,13 +16,38 @@
     "export": "Xuất",
     "import": "Nhập",
     "confirm": "Xác nhận",
-    "back": "Quay lại"
+    "back": "Quay lại",
+    "clearFilters": "Xóa bộ lọc",
+    "clear": "Xóa",
+    "refresh": "Làm mới"
+  },
+  "filters": {
+    "dateRange": "Khoảng ngày",
+    "pickDate": "Chọn ngày",
+    "to": "đến",
+    "fromTime": "Từ giờ",
+    "toTime": "Đến giờ"
+  },
+  "pagination": {
+    "showing": "Hiển thị {from} đến {to} trong tổng số {total} mục",
+    "pageOf": "Trang {current} / {total}",
+    "firstPage": "Đến trang đầu",
+    "prevPage": "Về trang trước",
+    "nextPage": "Đến trang sau",
+    "lastPage": "Đến trang cuối",
+    "rows": "Số dòng",
+    "max": "Tối đa"
   },
   "status": {
     "loading": "Đang tải...",
     "saving": "Đang lưu...",
     "success": "Thao tác thành công.",
-    "noData": "Không có dữ liệu."
+    "noData": "Không có dữ liệu.",
+    "status": "Trạng thái",
+    "all": "Tất cả",
+    "draft": "Bản nháp",
+    "posted": "Đã đăng",
+    "cancelled": "Đã hủy"
   },
   "layout": {
     "brand": "Demo",

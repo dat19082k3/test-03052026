@@ -3,7 +3,7 @@ import { normalizeApiError, type NormalizedApiError } from './api';
 const BASE_API_URL = '/api'; // BFF Proxy path
 
 export type ApiResult<T> = 
-  | { success: true; data: T }
+  | { success: true; data: T; meta?: any }
   | { success: false; error: NormalizedApiError };
 
 /**
@@ -30,7 +30,11 @@ async function request<T>(
       return { success: false, error: normalizeApiError(data) };
     }
 
-    return { success: true, data: data.data };
+    return { 
+      success: true, 
+      data: data.data !== undefined ? data.data : data,
+      meta: data.meta
+    };
   } catch (error) {
     return { success: false, error: normalizeApiError(error) };
   }
