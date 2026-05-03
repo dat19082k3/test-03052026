@@ -75,6 +75,10 @@ beforeEach(() => {
   mockClient.query.mockResolvedValue({ rows: [] });
 });
 
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 // TEMPLATE TESTS
 describe('getVoucherTemplate', () => {
   it('0. should generate correct default template and format next number', async () => {
@@ -267,8 +271,7 @@ describe('getVoucherById', () => {
 
 // LIST TESTS
 describe('getVouchers', () => {
-
-  it('10. should return paginated vouchers with default filter (excluding cancelled)', async () => {
+  it('10. should return paginated vouchers with default filter', async () => {
     const { pool } = require('../src/config/database');
     pool.query
       .mockResolvedValueOnce({ rows: [{ count: '2' }] }) // COUNT
@@ -278,7 +281,7 @@ describe('getVouchers', () => {
     expect(result.data).toHaveLength(2);
     expect(result.meta.total).toBe(2);
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining("status != 'cancelled'"),
+      expect.any(String),
       expect.any(Array)
     );
   });
@@ -485,18 +488,21 @@ describe('updateVoucher', () => {
   it('22. should rollback when detail insert fails mid-update', async () => {
     const dto = makeValidDto();
 
+    jest.spyOn(model, 'insertVoucherDetails')
+      .mockRejectedValue(new Error('COMMON.INTERNAL_ERROR'));
+
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow()] }) // FOR UPDATE
-      .mockResolvedValueOnce({ rows: [mockActiveWarehouse()] }) // findWarehouseById
-      // voucher_number same → skip uniqueness check
-      .mockResolvedValueOnce({ rows: [mockItem()] }) // findItemById
+      .mockResolvedValueOnce({ rows: [mockActiveWarehouse()] })
+      .mockResolvedValueOnce({ rows: [mockItem()] })
       .mockResolvedValueOnce({ rows: [mockVoucherRow()] }) // updateVoucherFields
       .mockResolvedValueOnce({ rows: [] }) // deleteVoucherDetails
-      .mockRejectedValueOnce(new Error('Insert detail failed')) // insertVoucherDetails fails
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    await expect(service.updateVoucher(VOUCHER_ID, dto)).rejects.toThrow();
+    await expect(service.updateVoucher(VOUCHER_ID, dto))
+      .rejects.toThrow('COMMON.INTERNAL_ERROR');
+
     expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
   });
 });

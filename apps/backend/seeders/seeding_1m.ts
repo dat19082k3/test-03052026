@@ -4,7 +4,9 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 
 // Load environment variables from .env.development
-dotenv.config({ path: path.join(__dirname, '../.env.development') });
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.join(__dirname, '../.env.development') });
+}
 
 const pool = new Pool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -86,7 +88,7 @@ async function seed() {
                 status = 'draft';
             } else {
                 status = 'cancelled';
-                cancelReason = ['Wrong quantity', 'Order cancelled by supplier', 'Duplicate entry', 'Input error'][Math.floor(Math.random() * 4)];
+                cancelReason = (['Wrong quantity', 'Order cancelled by supplier', 'Duplicate entry', 'Input error'][Math.floor(Math.random() * 4)]) ?? null;
                 cancelledAt = new Date(voucherDate.getTime() + 86400000).toISOString(); // 1 day after voucher date
             }
 

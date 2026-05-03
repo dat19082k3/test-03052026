@@ -139,6 +139,28 @@ export interface ReplaceInventoryVoucherDto extends CreateInventoryVoucherDto {
   // same as create, but we'll link it to a cancelled voucher in the controller/service
 }
 
+export type InventoryVoucherExportMode =
+  | 'list_all'
+  | 'list_selected'
+  | 'forms_selected'
+  | 'form_single';
+
+export interface ExportInventoryVouchersDto {
+  mode?: InventoryVoucherExportMode;
+  voucherIds?: string[];
+  voucherId?: string;
+  templatePath?: string;
+}
+
+export interface InventoryExcelJobStatus {
+  jobId?: string;
+  name?: string;
+  state: string;
+  progress?: unknown;
+  failedReason?: string;
+  returnvalue?: unknown;
+}
+
 // Validation schemas (Zod)
 export {
   createVoucherSchema,

@@ -1,5 +1,5 @@
 {
-  "name": "@repo/types",
+  "name": "@repo/db",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -7,10 +7,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
-  "devDependencies": {
-    "typescript": "^5.9.2"
-  },
   "dependencies": {
-    "zod": "^4.3.6"
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.9.2"
   }
 }

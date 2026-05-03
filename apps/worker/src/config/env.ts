@@ -1,11 +1,9 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Determine which .env file to load
 const nodeEnv = process.env.NODE_ENV || 'development';
 const envFile = nodeEnv === 'development' ? '.env.development' : '.env';
 
-// Load environment variables from the root of the monorepo or local
 const localEnvPath = path.resolve(process.cwd(), envFile);
 const rootEnvPath = path.resolve(process.cwd(), '../../', envFile);
 
@@ -14,8 +12,12 @@ dotenv.config({ path: rootEnvPath });
 
 export const config = {
   nodeEnv,
-  port: parseInt(process.env.PORT || '4000', 10),
   logLevel: process.env.LOG_LEVEL || (nodeEnv === 'development' ? 'debug' : 'info'),
+  concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),
+  exportDir: process.env.EXCEL_EXPORT_DIR || path.resolve(process.cwd(), 'storage/exports'),
+  voucherTemplatePath: process.env.INVENTORY_VOUCHER_TEMPLATE_PATH || '/Users/dss/Downloads/pn.xlsx',
+  importBatchSize: parseInt(process.env.EXCEL_IMPORT_BATCH_SIZE || '1000', 10),
+  exportBatchSize: parseInt(process.env.EXCEL_EXPORT_BATCH_SIZE || '5000', 10),
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '5432', 10),
@@ -28,5 +30,5 @@ export const config = {
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
     db: parseInt(process.env.REDIS_DB || '0', 10),
-  }
+  },
 };

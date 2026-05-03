@@ -9,6 +9,12 @@ router.post('/vouchers', validate(createVoucherSchema), inventoryController.crea
 
 router.get('/vouchers', inventoryController.getVouchers);
 
+router.post('/vouchers/export', inventoryController.exportVouchers);
+
+router.post('/vouchers/import', inventoryController.importVouchers);
+
+router.get('/excel-jobs/:jobId', inventoryController.getExcelJob);
+
 router.get('/vouchers/template', inventoryController.getVoucherTemplate);
 
 router.get('/vouchers/:id', inventoryController.getVoucherById);

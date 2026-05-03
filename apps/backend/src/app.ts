@@ -49,4 +49,9 @@ app.use('/api/v1/inventory', inventoryRoutes);
 // Global error handler (must be last)
 app.use(errorHandler);
 
+// Health check endpoint for Docker
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 export default app;

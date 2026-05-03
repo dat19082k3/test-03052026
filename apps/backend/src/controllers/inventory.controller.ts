@@ -109,6 +109,59 @@ export class InventoryController {
       next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }
   }
+
+  public async exportVouchers(
+    req: Request<any, any, {
+      mode?: 'list_all' | 'list_selected' | 'forms_selected' | 'form_single';
+      voucherIds?: string[];
+      voucherId?: string;
+      templatePath?: string;
+    }>,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const body = req.body || {};
+      const result = await inventoryService.enqueueVoucherExport({
+        mode: body.mode || (req.query.mode as any),
+        voucherIds: body.voucherIds,
+        voucherId: body.voucherId || (req.query.voucherId as string),
+        status: body.mode ? undefined : req.query.status as string,
+        startDate: body.mode ? undefined : req.query.startDate as string,
+        endDate: body.mode ? undefined : req.query.endDate as string,
+        templatePath: body.templatePath,
+      });
+      res.status(202).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async importVouchers(req: Request<any, any, { filePath: string }>, res: Response, next: NextFunction) {
+    try {
+      if (!req.body.filePath) {
+        throw new AppError(ErrorCode.VALIDATION.REQUIRED, 400, [
+          { field: 'filePath', code: ErrorCode.VALIDATION.REQUIRED },
+        ]);
+      }
+
+      const result = await inventoryService.enqueueVoucherImport({
+        filePath: req.body.filePath,
+      });
+      res.status(202).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async getExcelJob(req: Request<{ jobId: string }>, res: Response, next: NextFunction) {
+    try {
+      const result = await inventoryService.getInventoryExcelJob(req.params.jobId);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
 }
 
 export const inventoryController = new InventoryController();

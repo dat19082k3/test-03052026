@@ -6,6 +6,7 @@ import {
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import * as model from '../models/inventory.model';
+import { getInventoryExcelQueue } from '../queues/inventory-excel.queue';
 import { parse, startOfDay, addDays, addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 
@@ -432,4 +433,72 @@ export async function deleteDraftVoucher(id: string) {
   } finally {
     client.release();
   }
+}
+
+export async function enqueueVoucherExport(options: {
+  mode?: 'list_all' | 'list_selected' | 'forms_selected' | 'form_single';
+  requestedBy?: string;
+  voucherIds?: string[];
+  voucherId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  templatePath?: string;
+}) {
+  const mode = options.mode || 'list_all';
+  const allowedModes = ['list_all', 'list_selected', 'forms_selected', 'form_single'];
+  if (!allowedModes.includes(mode)) {
+    throw new AppError(ErrorCode.VALIDATION.INVALID_FORMAT, 400, [
+      { field: 'mode', code: ErrorCode.VALIDATION.INVALID_FORMAT },
+    ]);
+  }
+
+  const voucherIds = mode === 'form_single'
+    ? options.voucherId ? [options.voucherId] : []
+    : options.voucherIds || [];
+
+  if ((mode === 'list_selected' || mode === 'forms_selected') && !Array.isArray(options.voucherIds)) {
+    throw new AppError(ErrorCode.VALIDATION.INVALID_TYPE, 400, [
+      { field: 'voucherIds', code: ErrorCode.VALIDATION.INVALID_TYPE },
+    ]);
+  }
+
+  if ((mode === 'list_selected' || mode === 'forms_selected' || mode === 'form_single') && voucherIds.length === 0) {
+    throw new AppError(ErrorCode.VALIDATION.REQUIRED, 400, [
+      { field: mode === 'form_single' ? 'voucherId' : 'voucherIds', code: ErrorCode.VALIDATION.REQUIRED },
+    ]);
+  }
+
+  const inventoryExcelQueue = getInventoryExcelQueue();
+  const job = await inventoryExcelQueue.add('export-vouchers', {
+    ...options,
+    mode,
+    voucherIds,
+    voucherId: options.voucherId,
+  });
+  return { jobId: job.id, state: await job.getState() };
+}
+
+export async function enqueueVoucherImport(options: {
+  requestedBy?: string;
+  filePath: string;
+}) {
+  const inventoryExcelQueue = getInventoryExcelQueue();
+  const job = await inventoryExcelQueue.add('import-vouchers', options);
+  return { jobId: job.id, state: await job.getState() };
+}
+
+export async function getInventoryExcelJob(jobId: string) {
+  const inventoryExcelQueue = getInventoryExcelQueue();
+  const job = await inventoryExcelQueue.getJob(jobId);
+  if (!job) throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+
+  return {
+    jobId: job.id,
+    name: job.name,
+    state: await job.getState(),
+    progress: job.progress,
+    failedReason: job.failedReason,
+    returnvalue: job.returnvalue,
+  };
 }

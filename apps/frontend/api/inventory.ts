@@ -5,7 +5,9 @@ import type {
   CreateInventoryVoucherDto, 
   UpdateInventoryVoucherDto,
   CancelInventoryVoucherDto,
-  ReplaceInventoryVoucherDto
+  ReplaceInventoryVoucherDto,
+  ExportInventoryVouchersDto,
+  InventoryExcelJobStatus
 } from '@repo/types';
 
 const RESOURCE = '/inventory/vouchers';
@@ -75,6 +77,13 @@ export const inventoryApi = {
   replaceVoucher: (id: string, dto: ReplaceInventoryVoucherDto): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.post(`${RESOURCE}/${id}/replace`, dto);
   },
-};
 
+  exportVouchers: (dto: ExportInventoryVouchersDto = {}): Promise<ApiResult<InventoryExcelJobStatus>> => {
+    return apiClient.post(`${RESOURCE}/export`, dto);
+  },
+
+  getExcelJob: (jobId: string): Promise<ApiResult<InventoryExcelJobStatus>> => {
+    return apiClient.get(`/inventory/excel-jobs/${jobId}`);
+  },
+};
 

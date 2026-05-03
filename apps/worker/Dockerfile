@@ -14,9 +14,9 @@ COPY packages/ui/package.json ./packages/ui/package.json
 RUN npm ci
 
 FROM deps AS builder
-COPY apps/backend ./apps/backend
+COPY apps/worker ./apps/worker
 COPY packages ./packages
-RUN npm run build -w backend
+RUN npm run build -w worker
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -33,17 +33,12 @@ COPY --chown=nodejs:nodejs packages/types/package.json ./packages/types/package.
 COPY --chown=nodejs:nodejs packages/typescript-config/package.json ./packages/typescript-config/package.json
 COPY --chown=nodejs:nodejs packages/eslint-config/package.json ./packages/eslint-config/package.json
 COPY --chown=nodejs:nodejs packages/ui/package.json ./packages/ui/package.json
-RUN npm ci --omit=dev --workspace backend --workspace @repo/db --workspace @repo/types --include-workspace-root=false
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/package.json ./apps/backend/package.json
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/migrations ./apps/backend/migrations
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/seeders ./apps/backend/seeders
+RUN npm ci --omit=dev --workspace worker --workspace @repo/db --include-workspace-root=false
+COPY --from=builder --chown=nodejs:nodejs /app/apps/worker/package.json ./apps/worker/package.json
+COPY --from=builder --chown=nodejs:nodejs /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/db/package.json ./packages/db/package.json
 COPY --from=builder --chown=nodejs:nodejs /app/packages/db/dist ./packages/db/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/types/package.json ./packages/types/package.json
-COPY --from=builder --chown=nodejs:nodejs /app/packages/types/dist ./packages/types/dist
 
 USER nodejs
-EXPOSE 4000
 
-CMD ["node", "apps/backend/dist/server.js"]
+CMD ["node", "apps/worker/dist/index.js"]
