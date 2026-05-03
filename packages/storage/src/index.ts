@@ -16,16 +16,25 @@ export interface S3EnvConfig {
   bucket: string;
   endpoint?: string;
   forcePathStyle?: boolean;
+  accessKeyId?: string;
+  secretAccessKey?: string;
 }
 
 export function readS3ConfigFromEnv(): S3EnvConfig | null {
   const bucket = process.env.S3_BUCKET?.trim();
   if (!bucket) return null;
   return {
-    region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'ap-southeast-1',
+    region:
+      process.env.AWS_REGION ||
+      process.env.AWS_DEFAULT_REGION ||
+      process.env.S3_REGION ||
+      'ap-southeast-1',
     bucket,
     endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === '1' || process.env.S3_FORCE_PATH_STYLE === 'true',
+    forcePathStyle:
+      process.env.S3_FORCE_PATH_STYLE === '1' || process.env.S3_FORCE_PATH_STYLE === 'true',
+    accessKeyId: process.env.S3_ACCESS_KEY?.trim() || process.env.AWS_ACCESS_KEY_ID?.trim(),
+    secretAccessKey: process.env.S3_SECRET_KEY?.trim() || process.env.AWS_SECRET_ACCESS_KEY?.trim(),
   };
 }
 
@@ -34,6 +43,13 @@ export function createS3Client(cfg: S3EnvConfig): S3Client {
     region: cfg.region,
     endpoint: cfg.endpoint,
     forcePathStyle: cfg.forcePathStyle,
+    credentials:
+      cfg.accessKeyId && cfg.secretAccessKey
+        ? {
+            accessKeyId: cfg.accessKeyId,
+            secretAccessKey: cfg.secretAccessKey,
+          }
+        : undefined,
   });
 }
 

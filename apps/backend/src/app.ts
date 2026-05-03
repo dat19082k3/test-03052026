@@ -10,6 +10,7 @@ import inventoryRoutes from './routes/inventory.routes';
 import { errorHandler } from './middlewares/error-handler.middleware';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Middlewares
 app.use(helmet());
@@ -36,7 +37,8 @@ app.use(pinoHttp({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 2000,
+  skip: (req) => req.url === '/health',
 });
 app.use(limiter);
 

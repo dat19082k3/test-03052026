@@ -16,7 +16,7 @@ graph TD
     Backend <--> Redis[Redis Broker]
     Worker[BullMQ Worker] <--> Redis
     Worker <--> DB
-    Worker <--> S3[AWS S3 / LocalStack]
+    Worker <--> S3[AWS S3 / Minio]
     Backend <--> S3
 ```
 
@@ -37,7 +37,7 @@ graph TD
 - **Frontend**: Next.js 14 (App Router), Tailwind CSS, TanStack Query, ShadcnUI.
 - **Backend**: Node.js, Express, TypeScript, Zod (Validation).
 - **Worker**: BullMQ.
-- **Storage**: PostgreSQL (Primary DB), Redis (Queue/Cache), AWS S3 (File Storage).
+- **Storage**: PostgreSQL (Primary DB), Redis (Queue/Cache), Minio (S3 Emulation).
 - **Tooling**: Turborepo, Docker, ESLint, Prettier.
 
 ---
@@ -46,7 +46,7 @@ graph TD
 
 ### Prerequisites
 - **Node.js**: v20 or higher.
-- **Docker**: For running database, redis, and S3 local services.
+- **Docker**: For running database, redis, and S3 local services (Minio).
 - **NPM**: Package manager.
 
 ### Local Development Setup
@@ -67,7 +67,7 @@ graph TD
 3.  **Start Infrastructure**:
     Using Docker Compose to spin up necessary services:
     ```bash
-    docker compose up -d postgres redis localstack
+    docker compose up -d postgres redis minio
     ```
 
 4.  **Run Development Environment**:

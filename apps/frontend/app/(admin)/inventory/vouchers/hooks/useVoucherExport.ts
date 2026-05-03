@@ -23,7 +23,7 @@ async function pollExcelJob(jobId: string) {
     if (terminal.has(job.state)) {
       return job;
     }
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 2000));
   }
 }
 
