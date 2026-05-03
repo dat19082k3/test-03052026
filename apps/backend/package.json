@@ -9,7 +9,9 @@
     "start": "NODE_ENV=production node dist/server.js",
     "lint": "eslint .",
     "migrate": "node-pg-migrate",
-    "migrate:create": "node-pg-migrate create"
+    "migrate:create": "node-pg-migrate create",
+    "seed:1m": "ts-node-dev --transpile-only seeders/seeding_1m.ts",
+    "seed:test": "ts-node-dev --transpile-only seeders/seeding_1m.ts --count=100"
   },
   "keywords": [],
   "author": "",
@@ -40,6 +42,8 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",

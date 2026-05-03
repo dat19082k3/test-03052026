@@ -6,6 +6,8 @@ import {
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import * as model from '../models/inventory.model';
+import { parse, startOfDay, addDays, addMinutes } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
 
 // Get Voucher Template (for frontend form initial state)
 export async function getVoucherTemplate() {
@@ -128,10 +130,49 @@ export async function createVoucher(dto: CreateInventoryVoucherDto) {
 }
 
 // Get Vouchers (paginated)
-export async function getVouchers(page: number = 1, limit: number = 10) {
-  const { data, total } = await model.findVouchers(page, limit);
-  const totalPages = Math.ceil(total / limit);
-  return { data, meta: { total, page, limit, totalPages } };
+export async function getVouchers(
+  options: Omit<model.FindVouchersOptions, 'startDate' | 'endDate'> & {
+    from?: string;
+    to?: string;
+    tz?: string;
+  },
+) {
+  const { from, to, tz = 'UTC', ...rest } = options;
+  const safeTz = Intl.supportedValuesOf('timeZone').includes(tz)
+  ? tz
+  : 'UTC';
+
+  let startDate: string | undefined;
+  let endDate: string | undefined;
+
+  if (from) {
+    const fromDate = from.includes('T') ? new Date(from) : parse(from, 'yyyy-MM-dd', new Date());
+    startDate = from.includes('T') ? fromZonedTime(fromDate, safeTz).toISOString() : fromZonedTime(startOfDay(fromDate), safeTz).toISOString();
+  }
+
+  if (to) {
+    const toDate = to.includes('T') ? new Date(to) : parse(to, 'yyyy-MM-dd', new Date());
+    endDate = to.includes('T') ? fromZonedTime(addMinutes(toDate, 1), safeTz).toISOString() : fromZonedTime(startOfDay(addDays(toDate, 1)), safeTz).toISOString();
+  }
+
+
+  const { data, total } = await model.findVouchers({
+    ...rest,
+    startDate,
+    endDate,
+  });
+
+  const totalPages = Math.ceil(total / (options.limit || 10));
+  return { 
+    data, 
+    meta: { 
+      total, 
+      page: options.page, 
+      limit: options.limit, 
+      totalPages,
+      timezone: safeTz
+    } 
+  };
 }
 
 // Get Voucher by ID

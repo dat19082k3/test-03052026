@@ -1,11 +1,10 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
 import swaggerUi from 'swagger-ui-express';
 import { logger } from './utils/logger';
-import { pool } from './config/database';
 import { swaggerSpec } from './config/swagger';
 import inventoryRoutes from './routes/inventory.routes';
 import { errorHandler } from './middlewares/error-handler.middleware';

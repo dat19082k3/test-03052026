@@ -34,7 +34,7 @@ export const up = (pgm) => {
     CREATE TABLE inventory_vouchers (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         voucher_number VARCHAR(50) UNIQUE NOT NULL,
-        voucher_date DATE NOT NULL,
+        voucher_date TIMESTAMP WITH TIME ZONE NOT NULL,
         
         -- Organization Information
         unit_name VARCHAR(255),

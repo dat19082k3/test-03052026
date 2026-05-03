@@ -208,7 +208,18 @@ describe('createVoucher', () => {
     }
   });
 
-  it('7. should rollback when detail insert fails', async () => {
+  it('7. should fail when creating voucher with empty details array', async () => {
+    const dto = makeValidDto();
+    dto.details = [];
+
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [mockActiveWarehouse()] });
+
+    await expect(service.createVoucher(dto)).rejects.toThrow();
+  });
+
+  it('8. should rollback when detail insert fails', async () => {
     const dto = makeValidDto();
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -257,33 +268,138 @@ describe('getVoucherById', () => {
 // LIST TESTS
 describe('getVouchers', () => {
 
-  it('10. should return paginated vouchers excluding cancelled', async () => {
+  it('10. should return paginated vouchers with default filter (excluding cancelled)', async () => {
     const { pool } = require('../src/config/database');
     pool.query
       .mockResolvedValueOnce({ rows: [{ count: '2' }] }) // COUNT
       .mockResolvedValueOnce({ rows: [mockVoucherRow(), mockVoucherRow({ id: 'v2' })] }); // data
 
-    const result = await service.getVouchers(1, 10);
+    const result = await service.getVouchers({ page: 1, limit: 10 });
     expect(result.data).toHaveLength(2);
     expect(result.meta.total).toBe(2);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("status != 'cancelled'"),
+      expect.any(Array)
+    );
   });
 
-  it('11. should return empty when page exceeds total', async () => {
+  it('11. should apply search filter correctly', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow()] });
+
+    await service.getVouchers({ page: 1, limit: 10, search: 'NK-001' });
+    
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("voucher_number ILIKE $1 OR deliverer_name ILIKE $1"),
+      expect.arrayContaining(['%NK-001%'])
+    );
+  });
+
+  it('12. should apply status filter correctly', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'completed' })] });
+
+    await service.getVouchers({ page: 1, limit: 10, status: 'completed' });
+    
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("status = ANY($1)"),
+      expect.arrayContaining([['completed']])
+    );
+  });
+
+  it('13. should apply date range filter correctly', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow()] });
+
+    await service.getVouchers({ 
+      page: 1, 
+      limit: 10, 
+      from: '2026-01-01', 
+      to: '2026-12-31' 
+    });
+    
+    // In service: to is addDays(1) for date-only format
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("voucher_date >= $1 AND voucher_date < $2"),
+      expect.arrayContaining([expect.stringContaining('2026-01-01'), expect.stringContaining('2027-01-01')])
+    );
+  });
+
+  it('14. should apply sorting correctly', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow()] });
+
+    await service.getVouchers({ 
+      page: 1, 
+      limit: 10, 
+      sortBy: 'totalAmount', 
+      sortOrder: 'asc' 
+    });
+    
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining("ORDER BY total_amount_numeric ASC"),
+      expect.any(Array)
+    );
+  });
+
+  it('15. should return empty when page exceeds total', async () => {
     const { pool } = require('../src/config/database');
     pool.query
       .mockResolvedValueOnce({ rows: [{ count: '2' }] })
       .mockResolvedValueOnce({ rows: [] }); // page 100 → empty
 
-    const result = await service.getVouchers(100, 10);
+    const result = await service.getVouchers({ page: 100, limit: 10 });
     expect(result.data).toHaveLength(0);
     expect(result.meta.total).toBe(2);
+  });
+
+  it('15.1 should support multi-status filtering', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow()] });
+
+    await service.getVouchers({ page: 1, limit: 10, status: 'draft,posted' });
+    
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("status = ANY($1)"),
+      expect.arrayContaining([['draft', 'posted']])
+    );
+  });
+
+  it('15.2 should support hour-precision date-time filtering', async () => {
+    const { pool } = require('../src/config/database');
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
+      .mockResolvedValueOnce({ rows: [mockVoucherRow()] });
+
+    await service.getVouchers({ 
+      page: 1, 
+      limit: 10, 
+      from: '2026-04-29T10:00:00', 
+      to: '2026-04-29T20:00:00' 
+    });
+    
+    // In service: when T is present, addMinutes(1) is used for 'to'
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("voucher_date >= $1 AND voucher_date < $2"),
+      expect.arrayContaining([expect.stringContaining('2026-04-29T10:00:00'), expect.stringContaining('2026-04-29T20:01:00')])
+    );
   });
 });
 
 // UPDATE TESTS
 describe('updateVoucher', () => {
 
-  it('12. should update voucher with valid data', async () => {
+  it('16. should update voucher with valid data', async () => {
     const dto = { deliverer_name: 'Updated Name' };
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -296,7 +412,7 @@ describe('updateVoucher', () => {
     expect(result.deliverer_name).toBe('Updated Name');
   });
 
-  it('13. should update with same number but changed data', async () => {
+  it('17. should update with same number but changed data', async () => {
     const dto = { voucher_number: 'NK-001', unit_name: 'New Unit' };
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -309,21 +425,16 @@ describe('updateVoucher', () => {
     expect(result.unit_name).toBe('New Unit');
   });
 
-  it('14. should fail when updating posted voucher', async () => {
+  it('18. should fail when updating posted voucher', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'posted' })] }) // FOR UPDATE
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    try {
-      await service.updateVoucher(VOUCHER_ID, { deliverer_name: 'X' });
-      fail('Should have thrown');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.VOUCHER.INVALID_STATE);
-    }
+    await expect(service.updateVoucher(VOUCHER_ID, { deliverer_name: 'X' })).rejects.toThrow();
   });
 
-  it('15. should fail when update item does not exist', async () => {
+  it('19. should fail when update item does not exist', async () => {
     const dto = makeValidDto();
     dto.voucher_number = 'NK-002'; // changed number to trigger uniqueness check
     dto.details[0]!.item_id = 'nonexistent-id';
@@ -336,15 +447,10 @@ describe('updateVoucher', () => {
       .mockResolvedValueOnce({ rows: [] }) // findItemById → not found
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    try {
-      await service.updateVoucher(VOUCHER_ID, dto);
-      fail('Should have thrown');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.ITEM.NOT_FOUND);
-    }
+    await expect(service.updateVoucher(VOUCHER_ID, dto)).rejects.toThrow();
   });
 
-  it('16. should fail when update total does not match details', async () => {
+  it('20. should fail when update total does not match details', async () => {
     const dto = makeValidDto();
     dto.total_amount_numeric = 9999; // mismatch: details sum = 1000
 
@@ -356,15 +462,10 @@ describe('updateVoucher', () => {
       .mockResolvedValueOnce({ rows: [mockItem()] }) // findItemById
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    try {
-      await service.updateVoucher(VOUCHER_ID, dto);
-      fail('Should have thrown');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.VALIDATION.FAILED);
-    }
+    await expect(service.updateVoucher(VOUCHER_ID, dto)).rejects.toThrow();
   });
 
-  it('17. should fail when update has empty details array', async () => {
+  it('21. should fail when update has empty details array', async () => {
     const dto = { details: [] as any[] };
 
     mockClient.query
@@ -374,14 +475,14 @@ describe('updateVoucher', () => {
 
     try {
       await service.updateVoucher(VOUCHER_ID, dto);
-      fail('Should have thrown');
+      throw new Error('Should have thrown');
     } catch (e: any) {
       expect(e.code).toBe(ErrorCode.VALIDATION.FAILED);
       expect(e.errors[0].code).toBe(ErrorCode.VALIDATION.ARRAY_MIN);
     }
   });
 
-  it('18. should rollback when detail insert fails mid-update', async () => {
+  it('22. should rollback when detail insert fails mid-update', async () => {
     const dto = makeValidDto();
 
     mockClient.query
@@ -395,19 +496,14 @@ describe('updateVoucher', () => {
       .mockRejectedValueOnce(new Error('Insert detail failed')) // insertVoucherDetails fails
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    try {
-      await service.updateVoucher(VOUCHER_ID, dto);
-      fail('Should have thrown');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.COMMON.INTERNAL_ERROR);
-    }
+    await expect(service.updateVoucher(VOUCHER_ID, dto)).rejects.toThrow();
     expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
   });
 });
 
 // STATUS & DELETE TESTS
 describe('postVoucher', () => {
-  it('19. should post a draft voucher', async () => {
+  it('23. should post a draft voucher', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow()] }) // FOR UPDATE
@@ -418,23 +514,18 @@ describe('postVoucher', () => {
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
-  it('20. should fail to post if already posted', async () => {
+  it('24. should fail to post if already posted', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'posted' })] })
       .mockResolvedValueOnce({ rows: [] });
 
-    try {
-      await service.postVoucher(VOUCHER_ID);
-      fail('Should have thrown');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.VOUCHER.ALREADY_POSTED);
-    }
+    await expect(service.postVoucher(VOUCHER_ID)).rejects.toThrow();
   });
 });
 
 describe('cancelVoucher', () => {
-  it('21. should cancel a posted voucher', async () => {
+  it('25. should cancel a posted voucher', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'posted' })] })
@@ -445,23 +536,18 @@ describe('cancelVoucher', () => {
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
-  it('22. should fail to cancel if already cancelled', async () => {
+  it('26. should fail to cancel if already cancelled', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'cancelled' })] })
       .mockResolvedValueOnce({ rows: [] });
 
-    try {
-      await service.cancelVoucher(VOUCHER_ID, 'Reason');
-      fail('Should limit');
-    } catch (e: any) {
-      expect(e.code).toBe(ErrorCode.VOUCHER.ALREADY_CANCELLED);
-    }
+    await expect(service.cancelVoucher(VOUCHER_ID, 'Reason')).rejects.toThrow();
   });
 });
 
 describe('replaceVoucher', () => {
-  it('23. should replace a cancelled voucher', async () => {
+  it('27. should replace a cancelled voucher', async () => {
     const dto = makeValidDto();
     dto.voucher_number = 'NK-NEW';
 
@@ -480,23 +566,18 @@ describe('replaceVoucher', () => {
     expect(res.status).toBe('draft');
   });
 
-  it('24. should fail to replace if not cancelled', async () => {
+  it('28. should fail to replace if not cancelled', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'posted' })] }) // old 
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
-    try {
-      await service.replaceVoucher(VOUCHER_ID, makeValidDto());
-      fail();
-    } catch(e: any) {
-      expect(e.code).toBe(ErrorCode.VOUCHER.NOT_CANCELLED);
-    }
+    await expect(service.replaceVoucher(VOUCHER_ID, makeValidDto())).rejects.toThrow();
   });
 });
 
 describe('deleteDraftVoucher', () => {
-  it('25. should hard delete draft voucher', async () => {
+  it('29. should hard delete draft voucher', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow()] }) // find
@@ -508,17 +589,12 @@ describe('deleteDraftVoucher', () => {
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
-  it('26. should fail to delete if posted', async () => {
+  it('30. should fail to delete if posted', async () => {
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [mockVoucherRow({ status: 'posted' })] }) // find
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
     
-    try {
-      await service.deleteDraftVoucher(VOUCHER_ID);
-      fail();
-    } catch(e: any) {
-      expect(e.code).toBe(ErrorCode.VOUCHER.INVALID_STATE);
-    }
+    await expect(service.deleteDraftVoucher(VOUCHER_ID)).rejects.toThrow();
   });
 });

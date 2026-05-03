@@ -28,8 +28,26 @@ export class InventoryController {
   public async getVouchers(req: Request, res: Response, next: NextFunction) {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
-      const result = await inventoryService.getVouchers(page, limit);
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const search = req.query.search as string;
+      const status = req.query.status as string;
+      const from = req.query.from as string;
+      const to = req.query.to as string;
+      const tz = req.query.tz as string;
+      const sortBy = req.query.sortBy as string;
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+
+      const result = await inventoryService.getVouchers({
+        page,
+        limit,
+        search,
+        status,
+        from,
+        to,
+        tz,
+        sortBy,
+        sortOrder,
+      });
       res.status(200).json({ status: 'success', ...result });
     } catch (error) {
       next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));

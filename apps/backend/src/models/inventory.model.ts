@@ -71,18 +71,104 @@ export async function findVoucherDetailsById(voucherId: string, client?: PoolCli
   return rows;
 }
 
-export async function findVouchers(page: number, limit: number) {
-  const offset = (page - 1) * limit;
+export interface FindVouchersOptions {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
 
+export async function findVouchers(options: FindVouchersOptions) {
+  const { 
+    page, 
+    limit, 
+    search, 
+    status, 
+    startDate, 
+    endDate, 
+    sortBy, 
+    sortOrder = 'desc' 
+  } = options;
+  const offset = (page - 1) * limit;
+  const values: any[] = [];
+  const conditions: string[] = [];
+  let paramIdx = 1;
+
+  // Build WHERE conditions
+  if (search) {
+    conditions.push(`(voucher_number ILIKE $${paramIdx} OR deliverer_name ILIKE $${paramIdx})`);
+    values.push(`%${search}%`);
+    paramIdx++;
+  }
+
+  if (status) {
+    const statusList = status.split(',');
+    conditions.push(`status = ANY($${paramIdx})`);
+    values.push(statusList);
+    paramIdx++;
+  } else {
+    // Default filter: exclude explicitly cancelled vouchers to reduce clutter
+    conditions.push(`status != 'cancelled'`);
+  }
+
+  if (startDate) {
+    conditions.push(`voucher_date >= $${paramIdx}`);
+    values.push(startDate);
+    paramIdx++;
+  }
+
+  if (endDate) {
+    conditions.push(`voucher_date < $${paramIdx}`);
+    values.push(endDate);
+    paramIdx++;
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Count total matching records
   const countResult = await pool.query(
-    `SELECT COUNT(id) FROM inventory_vouchers WHERE status != 'cancelled'`,
+    `SELECT COUNT(id) FROM inventory_vouchers ${whereClause}`,
+    values
   );
   const total = parseInt(countResult.rows[0].count, 10);
 
+  // Build ORDER BY clause
+  const allowedSortFields = [
+    'voucher_number', 
+    'voucher_date', 
+    'deliverer_name', 
+    'total_amount_numeric', 
+    'created_at', 
+    'status'
+  ];
+  
+  // Map frontend field names to db column names if necessary
+  const fieldMapping: Record<string, string> = {
+    'voucherNo': 'voucher_number',
+    'date': 'voucher_date',
+    'supplier': 'deliverer_name',
+    'totalAmount': 'total_amount_numeric',
+  };
+
+  const dbSortField = fieldMapping[sortBy || ''] || sortBy || 'created_at';
+  const finalSortField = allowedSortFields.includes(dbSortField) ? dbSortField : 'created_at';
+  const finalSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+  const limitParamIdx = paramIdx++;
+  const offsetParamIdx = paramIdx++;
+  values.push(limit, offset);
+
   const { rows } = await pool.query(
     `SELECT id, voucher_number, voucher_date, deliverer_name, warehouse_id, total_amount_numeric, created_by, status, created_at 
-     FROM inventory_vouchers WHERE status != 'cancelled' ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-    [limit, offset],
+     FROM inventory_vouchers 
+     ${whereClause} 
+     ORDER BY ${finalSortField} ${finalSortOrder} 
+     LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`,
+    values,
   );
 
   return { data: rows, total };
