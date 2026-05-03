@@ -36,3 +36,7 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Local Excel import/export (dev without S3)
+apps/worker/storage/exports/
+apps/backend/storage/imports/

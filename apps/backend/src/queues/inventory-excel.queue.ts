@@ -12,11 +12,16 @@ export interface InventoryExportJobData {
   startDate?: string;
   endDate?: string;
   templatePath?: string;
+  excelClientId: string;
+  lockTtl?: number;
 }
 
 export interface InventoryImportJobData {
   requestedBy?: string;
-  filePath: string;
+  filePath?: string;
+  importS3Key?: string;
+  excelClientId: string;
+  lockTtl?: number;
 }
 
 export type InventoryExcelJobData =

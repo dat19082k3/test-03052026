@@ -150,6 +150,26 @@ export interface ExportInventoryVouchersDto {
   voucherIds?: string[];
   voucherId?: string;
   templatePath?: string;
+  /** Required for Excel jobs: single-flight per browser (sent as X-Excel-Client-Id). */
+  excelClientId?: string;
+}
+
+export interface InventoryExcelJobResult {
+  storage: 's3' | 'local';
+  /** Original download filename */
+  fileName: string;
+  /** S3 object key when storage is s3 */
+  s3Key?: string;
+  /** Local path when storage is local (same host as worker) */
+  filePath?: string;
+  processed?: number;
+  /** Present when job name is import-vouchers */
+  imported?: number;
+  /** Relative path on the frontend origin for downloads (BFF proxy). */
+  downloadPath?: string;
+  /** Short-lived presigned URL (optional); prefer downloadPath to avoid exposing S3 host. */
+  presignedUrl?: string;
+  fileExpiresInSeconds?: number;
 }
 
 export interface InventoryExcelJobStatus {
@@ -158,7 +178,8 @@ export interface InventoryExcelJobStatus {
   state: string;
   progress?: unknown;
   failedReason?: string;
-  returnvalue?: unknown;
+  returnvalue?: InventoryExcelJobResult | null;
+  downloadPath?: string;
 }
 
 // Validation schemas (Zod)

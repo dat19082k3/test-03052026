@@ -8,6 +8,7 @@ interface UseDataTableProps<T> {
   manualSorting?: boolean;
   onSortChange?: (sortConfig: SortConfig) => void;
   sortConfig?: SortConfig;
+  selectedRowIds?: string[];
 }
 
 export function useDataTable<T>({
@@ -17,20 +18,35 @@ export function useDataTable<T>({
   manualSorting,
   onSortChange,
   sortConfig: externalSortConfig,
+  selectedRowIds: externalSelectedIds,
 }: UseDataTableProps<T>) {
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [internalSelectedKeys, setInternalSelectedKeys] = useState<Set<string>>(new Set());
   const [internalSortConfig, setInternalSortConfig] = useState<SortConfig>(null);
 
   const sortConfig = externalSortConfig !== undefined ? externalSortConfig : internalSortConfig;
+  const selectedKeys = useMemo(() => 
+    externalSelectedIds !== undefined ? new Set(externalSelectedIds) : internalSelectedKeys
+  , [externalSelectedIds, internalSelectedKeys]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allKeys = new Set(data.map(keyExtractor));
-      setSelectedKeys(allKeys);
-      onSelectionChange?.(Array.from(allKeys));
+      const currentPageKeys = data.map(keyExtractor);
+      const newSelected = new Set(selectedKeys);
+      currentPageKeys.forEach(key => newSelected.add(key));
+      
+      if (externalSelectedIds === undefined) {
+        setInternalSelectedKeys(newSelected);
+      }
+      onSelectionChange?.(Array.from(newSelected));
     } else {
-      setSelectedKeys(new Set());
-      onSelectionChange?.([]);
+      const currentPageKeys = data.map(keyExtractor);
+      const newSelected = new Set(selectedKeys);
+      currentPageKeys.forEach(key => newSelected.delete(key));
+
+      if (externalSelectedIds === undefined) {
+        setInternalSelectedKeys(newSelected);
+      }
+      onSelectionChange?.(Array.from(newSelected));
     }
   };
 
@@ -41,7 +57,10 @@ export function useDataTable<T>({
     } else {
       newSelected.delete(key);
     }
-    setSelectedKeys(newSelected);
+
+    if (externalSelectedIds === undefined) {
+      setInternalSelectedKeys(newSelected);
+    }
     onSelectionChange?.(Array.from(newSelected));
   };
 
@@ -59,7 +78,7 @@ export function useDataTable<T>({
     onSortChange?.(nextSort);
   };
 
-  const isAllSelected = data.length > 0 && selectedKeys.size === data.length;
+  const isAllSelected = data.length > 0 && data.every(row => selectedKeys.has(keyExtractor(row)));
 
   const sortedData = useMemo(() => {
     if (!sortConfig || manualSorting) return data;

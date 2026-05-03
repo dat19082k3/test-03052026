@@ -36,6 +36,9 @@ function cleanRequestHeaders(req: NextRequest, tokenCookie?: string): Headers {
   const xRequestedWith = req.headers.get('x-requested-with');
   if (xRequestedWith) customHeaders.set('x-requested-with', xRequestedWith);
 
+  const excelClientId = req.headers.get('x-excel-client-id');
+  if (excelClientId) customHeaders.set('x-excel-client-id', excelClientId);
+
   return customHeaders;
 }
 

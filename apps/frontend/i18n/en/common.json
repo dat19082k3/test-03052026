@@ -36,7 +36,23 @@
     "back": "Back",
     "clearFilters": "Clear Filters",
     "clear": "Clear",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "exportOptions": "Export Options",
+    "exportAll": "Export all (Excel)",
+    "exportSelectedList": "Export selected list (Excel)",
+    "exportSelectedForms": "Export selected forms (Excel)",
+    "showSelectedOnly": "Show selected only",
+    "selectedAllOnPage": "All {count} items on this page are selected.",
+    "selectAllInDataset": "Select all {count} items in total"
+  },
+  "excel": {
+    "exportListProgress": "Exporting Excel list…",
+    "exportFormsProgress": "Exporting voucher forms (TT200 template)…",
+    "importProgress": "Importing Excel…",
+    "exportDone": "Export finished. Your file has been downloaded.",
+    "importDone": "Import finished ({count} rows).",
+    "failed": "Excel operation failed.",
+    "downloadFailed": "Could not download the file. Please try again."
   },
   "status": {
     "loading": "Loading...",
@@ -81,6 +97,9 @@
     }
   },
   "errors": {
+    "COMMON": {
+      "CONFLICT": "Another Excel import/export is in progress. Please wait until it finishes."
+    },
     "403": {
       "title": "Access Denied",
       "description": "You do not have permission to access this page. Please contact your administrator if you believe this is a mistake."

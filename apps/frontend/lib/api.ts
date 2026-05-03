@@ -26,6 +26,11 @@ export function normalizeApiError(error: unknown): NormalizedApiError {
     };
   }
 
+  // Rate limit error
+  if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'RATE_LIMIT') {
+    return { code: 'RATE_LIMIT', fieldErrors: [] };
+  }
+
   // Unknown error
   return { code: 'UNKNOWN', fieldErrors: [] };
 }

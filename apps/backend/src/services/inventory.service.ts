@@ -1,14 +1,33 @@
+import fs from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
+import type { Express, Response } from 'express';
 import {
   CreateInventoryVoucherDto,
   UpdateInventoryVoucherDto,
   ErrorCode,
+  type InventoryExcelJobResult,
+  type InventoryExcelJobStatus,
 } from '@repo/types';
+import {
+  createS3Client,
+  getObjectStream,
+  presignGetObject,
+  putObjectBuffer,
+  readS3ConfigFromEnv,
+} from '@repo/storage';
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import * as model from '../models/inventory.model';
 import { getInventoryExcelQueue } from '../queues/inventory-excel.queue';
+import { config } from '../config/env';
+import { getRedisConnection } from '../config/redis';
+import { acquireInventoryExcelLock, releaseInventoryExcelLock } from './inventory-excel-lock.service';
 import { parse, startOfDay, addDays, addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
+
+const XLSX_CONTENT =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 // Get Voucher Template (for frontend form initial state)
 export async function getVoucherTemplate() {
@@ -136,6 +155,7 @@ export async function getVouchers(
     from?: string;
     to?: string;
     tz?: string;
+    ids?: string[];
   },
 ) {
   const { from, to, tz = 'UTC', ...rest } = options;
@@ -160,6 +180,7 @@ export async function getVouchers(
     ...rest,
     startDate,
     endDate,
+    ids: options.ids,
   });
 
   const totalPages = Math.ceil(total / (options.limit || 10));
@@ -444,7 +465,15 @@ export async function enqueueVoucherExport(options: {
   startDate?: string;
   endDate?: string;
   templatePath?: string;
+  excelClientId: string;
 }) {
+  const excelClientId = options.excelClientId.trim();
+  if (!excelClientId) {
+    throw new AppError(ErrorCode.VALIDATION.REQUIRED, 400, [
+      { field: 'excelClientId', code: ErrorCode.VALIDATION.REQUIRED },
+    ]);
+  }
+
   const mode = options.mode || 'list_all';
   const allowedModes = ['list_all', 'list_selected', 'forms_selected', 'form_single'];
   if (!allowedModes.includes(mode)) {
@@ -469,36 +498,233 @@ export async function enqueueVoucherExport(options: {
     ]);
   }
 
+  const redis = getRedisConnection();
+  
+  let estimatedCount = 20;
+  if (mode === 'form_single') {
+    estimatedCount = 1;
+  } else if (mode === 'list_selected' || mode === 'forms_selected') {
+    estimatedCount = voucherIds.length;
+  } else {
+    const { meta } = await getVouchers({ 
+      page: 1, 
+      limit: 1, 
+      status: options.status,
+      from: options.startDate,
+      to: options.endDate 
+    }).catch(() => ({ meta: { total: 100 } }));
+    estimatedCount = meta.total || 100;
+  }
+
+  // 2. Calculate Dynamic TTL and Job Timeout
+  const ttl = Math.min(3600, Math.max(300, Math.ceil(300 + estimatedCount * 0.1)));
+
   const inventoryExcelQueue = getInventoryExcelQueue();
-  const job = await inventoryExcelQueue.add('export-vouchers', {
-    ...options,
-    mode,
-    voucherIds,
-    voucherId: options.voucherId,
-  });
-  return { jobId: job.id, state: await job.getState() };
+  const jobId = `export-${excelClientId}`;
+
+  // 1. Check for existing lock and verify if it's stale
+  let locked = await acquireInventoryExcelLock(redis, excelClientId, ttl, jobId);
+  if (!locked) {
+    const existingJobId = await redis.get(`inv-excel:lock:${excelClientId}`);
+    const job = existingJobId ? await inventoryExcelQueue.getJob(existingJobId) : null;
+    const state = job ? await job.getState() : null;
+
+    const isActive = state && ['active', 'waiting', 'delayed'].includes(state);
+    if (isActive) {
+      throw new AppError(ErrorCode.COMMON.CONFLICT, 409, [
+        { field: 'excel', code: ErrorCode.COMMON.CONFLICT },
+      ]);
+    }
+
+    // Lock is stale: Force release and re-acquire
+    await releaseInventoryExcelLock(redis, excelClientId);
+    locked = await acquireInventoryExcelLock(redis, excelClientId, ttl, jobId);
+    if (!locked) {
+      throw new AppError(ErrorCode.COMMON.CONFLICT, 409, [
+        { field: 'excel', code: ErrorCode.COMMON.CONFLICT },
+      ]);
+    }
+  }
+
+  try {
+    // If a completed/failed job exists with the same ID, remove it to avoid BullMQ dupe error
+    const oldJob = await inventoryExcelQueue.getJob(jobId);
+    if (oldJob) await oldJob.remove();
+
+    const job = await inventoryExcelQueue.add(
+      'export-vouchers',
+      {
+        mode,
+        voucherIds,
+        voucherId: options.voucherId,
+        status: options.status,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        templatePath: options.templatePath,
+        requestedBy: options.requestedBy,
+        excelClientId,
+        lockTtl: ttl,
+      },
+      {
+        jobId, // Use stable job ID for better tracking
+        delay: 5000,
+      }
+    );
+    return { jobId: job.id, state: await job.getState() };
+  } catch (error) {
+    await releaseInventoryExcelLock(redis, excelClientId);
+    throw error;
+  }
 }
 
-export async function enqueueVoucherImport(options: {
-  requestedBy?: string;
-  filePath: string;
-}) {
+export async function enqueueVoucherImportFromUpload(file: Express.Multer.File, excelClientId: string) {
+  const clientId = excelClientId.trim();
+  if (!clientId) {
+    throw new AppError(ErrorCode.VALIDATION.REQUIRED, 400, [
+      { field: 'excelClientId', code: ErrorCode.VALIDATION.REQUIRED },
+    ]);
+  }
+
+  const redis = getRedisConnection();
   const inventoryExcelQueue = getInventoryExcelQueue();
-  const job = await inventoryExcelQueue.add('import-vouchers', options);
-  return { jobId: job.id, state: await job.getState() };
+  const jobId = `import-${clientId}`;
+
+  let locked = await acquireInventoryExcelLock(redis, clientId, 600, jobId);
+  if (!locked) {
+    const existingJobId = await redis.get(`inv-excel:lock:${clientId}`);
+    const job = existingJobId ? await inventoryExcelQueue.getJob(existingJobId) : null;
+    const state = job ? await job.getState() : null;
+
+    if (state && ['active', 'waiting', 'delayed'].includes(state)) {
+      throw new AppError(ErrorCode.COMMON.CONFLICT, 409, [
+        { field: 'excel', code: ErrorCode.COMMON.CONFLICT },
+      ]);
+    }
+
+    await releaseInventoryExcelLock(redis, clientId);
+    locked = await acquireInventoryExcelLock(redis, clientId, 600, jobId);
+  }
+
+  try {
+    const oldJob = await inventoryExcelQueue.getJob(jobId);
+    if (oldJob) await oldJob.remove();
+    const buf = await fs.promises.readFile(file.path);
+    let importS3Key: string | undefined;
+    let localFilePath: string | undefined;
+
+    const s3cfg = readS3ConfigFromEnv();
+    if (s3cfg) {
+      const client = createS3Client(s3cfg);
+      const key = `excel/imports/${randomUUID()}/${path.basename(file.filename)}`;
+      await putObjectBuffer({
+        client,
+        bucket: s3cfg.bucket,
+        key,
+        body: buf,
+        contentType: XLSX_CONTENT,
+      });
+      importS3Key = key;
+      await fs.promises.unlink(file.path).catch(() => undefined);
+    } else {
+      localFilePath = path.resolve(file.path);
+    }
+
+    const job = await inventoryExcelQueue.add('import-vouchers', {
+      importS3Key,
+      filePath: localFilePath,
+      excelClientId: clientId,
+    });
+    return { jobId: job.id, state: await job.getState() };
+  } catch (error) {
+    await releaseInventoryExcelLock(redis, clientId);
+    await fs.promises.unlink(file.path).catch(() => undefined);
+    throw error;
+  }
 }
 
-export async function getInventoryExcelJob(jobId: string) {
+export async function getInventoryExcelJob(jobId: string): Promise<InventoryExcelJobStatus> {
   const inventoryExcelQueue = getInventoryExcelQueue();
   const job = await inventoryExcelQueue.getJob(jobId);
   if (!job) throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
 
-  return {
+  const state = await job.getState();
+  const baseRv = job.returnvalue as InventoryExcelJobResult | null | undefined;
+  let returnvalue: InventoryExcelJobResult | null = baseRv ?? null;
+
+  const out: InventoryExcelJobStatus = {
     jobId: job.id,
     name: job.name,
-    state: await job.getState(),
+    state,
     progress: job.progress,
     failedReason: job.failedReason,
-    returnvalue: job.returnvalue,
+    returnvalue,
   };
+
+  if (state === 'completed' && job.name === 'export-vouchers' && returnvalue?.fileName) {
+    const rel = `/api/inventory/excel-jobs/${jobId}/download`;
+    const full = config.publicAppOrigin ? `${config.publicAppOrigin}${rel}` : rel;
+    returnvalue = { ...returnvalue, downloadPath: full };
+    out.downloadPath = full;
+    out.returnvalue = returnvalue;
+
+    const s3cfg = readS3ConfigFromEnv();
+    if (s3cfg && returnvalue.storage === 's3' && returnvalue.s3Key) {
+      const client = createS3Client(s3cfg);
+      const presignedUrl = await presignGetObject({
+        client,
+        bucket: s3cfg.bucket,
+        key: returnvalue.s3Key,
+        expiresInSeconds: Math.min(1800, config.excelS3FileTtlSeconds),
+      });
+      returnvalue = { ...returnvalue, presignedUrl, fileExpiresInSeconds: config.excelS3FileTtlSeconds };
+      out.returnvalue = returnvalue;
+    }
+  }
+
+  return out;
+}
+
+export async function streamInventoryExcelDownload(jobId: string, res: Response) {
+  const inventoryExcelQueue = getInventoryExcelQueue();
+  const job = await inventoryExcelQueue.getJob(jobId);
+  if (!job) throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+
+  const state = await job.getState();
+  if (state !== 'completed') {
+    throw new AppError(ErrorCode.VALIDATION.FAILED, 400, [
+      { field: 'jobId', code: ErrorCode.VALIDATION.FAILED, params: { reason: 'not_completed' } },
+    ]);
+  }
+  if (job.name !== 'export-vouchers') {
+    throw new AppError(ErrorCode.VALIDATION.FAILED, 400, [
+      { field: 'jobId', code: ErrorCode.VALIDATION.FAILED, params: { reason: 'not_export_job' } },
+    ]);
+  }
+
+  const rv = job.returnvalue as InventoryExcelJobResult | undefined;
+  if (!rv?.fileName) {
+    throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  }
+
+  const s3cfg = readS3ConfigFromEnv();
+  if (rv.storage === 's3' && rv.s3Key && s3cfg) {
+    const client = createS3Client(s3cfg);
+    const stream = await getObjectStream({ client, bucket: s3cfg.bucket, key: rv.s3Key });
+    res.setHeader('Content-Type', XLSX_CONTENT);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(rv.fileName)}`);
+    stream.pipe(res);
+    return;
+  }
+
+  const localPath =
+    rv.filePath && fs.existsSync(rv.filePath)
+      ? rv.filePath
+      : path.join(config.excelSharedExportDir, path.basename(rv.fileName));
+  if (!fs.existsSync(localPath)) {
+    throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  }
+
+  res.setHeader('Content-Type', XLSX_CONTENT);
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(rv.fileName)}`);
+  fs.createReadStream(localPath).pipe(res);
 }

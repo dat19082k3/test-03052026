@@ -15,7 +15,11 @@ export const config = {
   logLevel: process.env.LOG_LEVEL || (nodeEnv === 'development' ? 'debug' : 'info'),
   concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),
   exportDir: process.env.EXCEL_EXPORT_DIR || path.resolve(process.cwd(), 'storage/exports'),
-  voucherTemplatePath: process.env.INVENTORY_VOUCHER_TEMPLATE_PATH || '/Users/dss/Downloads/pn.xlsx',
+  /** When set, worker loads the voucher form template from S3. */
+  s3VoucherFormTemplateKey: process.env.S3_VOUCHER_FORM_TEMPLATE_KEY?.trim() || '',
+  /** When set, worker loads the voucher list template from S3. */
+  s3VoucherListTemplateKey: process.env.S3_VOUCHER_LIST_TEMPLATE_KEY?.trim() || '',
+  excelS3FileTtlSeconds: parseInt(process.env.EXCEL_S3_FILE_TTL_SECONDS || '1800', 10),
   importBatchSize: parseInt(process.env.EXCEL_IMPORT_BATCH_SIZE || '1000', 10),
   exportBatchSize: parseInt(process.env.EXCEL_EXPORT_BATCH_SIZE || '5000', 10),
   db: {
@@ -31,4 +35,5 @@ export const config = {
     password: process.env.REDIS_PASSWORD || undefined,
     db: parseInt(process.env.REDIS_DB || '0', 10),
   },
+  healthPort: parseInt(process.env.WORKER_HEALTH_PORT || '9090', 10),
 };

@@ -10,7 +10,6 @@ import {
   Search, 
   FilterX, 
   Upload, 
-  Download, 
   Plus, 
   ChevronDown, 
   Calendar as CalendarIcon,
@@ -33,6 +32,11 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { getDateFnsLocale } from '@/i18n/config';
+import { VoucherExportButton } from './VoucherExportButton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { useVoucherImport } from '../hooks/useVoucherImport';
+import { useInventoryExcelContext } from '../context/InventoryExcelContext';
 
 export interface VoucherFiltersProps {
   searchTerm: string;
@@ -44,6 +48,10 @@ export interface VoucherFiltersProps {
   locale: string;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  selectedIds: string[];
+  showOnlySelected: boolean;
+  onShowOnlySelectedChange: (value: boolean) => void;
+  onImportSuccess?: () => void;
 }
 
 export function VoucherFilters({
@@ -56,8 +64,19 @@ export function VoucherFilters({
   locale,
   onRefresh,
   isRefreshing,
+  selectedIds,
+  showOnlySelected,
+  onShowOnlySelectedChange,
+  onImportSuccess,
 }: VoucherFiltersProps) {
   const t = useTranslations('common');
+  const [isMounted, setIsMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  const { isExcelBusy } = useInventoryExcelContext();
+  const { inputRef, openFilePicker, onFileSelected, isImporting } = useVoucherImport(onImportSuccess);
 
   const handleDateSelect = (range: DateRange | undefined) => {
     if (range?.from && !range.to) {
@@ -237,6 +256,17 @@ export function VoucherFilters({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 px-3 text-muted-foreground hover:text-foreground"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          title={t('actions.refresh', { fallback: 'Refresh' })}
+        >
+          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+        </Button>
+
         <Button 
           variant="ghost" 
           size="sm"
@@ -253,27 +283,45 @@ export function VoucherFilters({
           <span className="font-medium">{t('actions.clear', { fallback: 'Clear Filters' })}</span>
         </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 px-3 text-muted-foreground hover:text-foreground"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          title={t('actions.refresh', { fallback: 'Refresh' })}
-        >
-          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-        </Button>
+        <div className="flex items-center space-x-2 px-2 py-1 ml-1">
+          <Checkbox 
+            id="show-selected" 
+            checked={showOnlySelected}
+            onCheckedChange={(checked) => onShowOnlySelectedChange(!!checked)}
+          />
+          <Label 
+            htmlFor="show-selected" 
+            className="text-xs font-medium leading-none cursor-pointer select-none flex items-center gap-1.5"
+          >
+            {t('actions.showSelectedOnly', { fallback: 'Show selected' })}
+            {isMounted && (selectedIds || []).length > 0 && (
+              <span className="flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-5 h-5 shadow-sm">
+                {(selectedIds || []).length}
+              </span>
+            )}
+          </Label>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="h-9 gap-2">
-          <Upload className="h-4 w-4 text-muted-foreground" />
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={onFileSelected}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-2"
+          disabled={isExcelBusy || isImporting}
+          onClick={openFilePicker}
+        >
+          <Upload className={cn('h-4 w-4 text-muted-foreground', isImporting && 'animate-pulse')} />
           <span className="hidden lg:inline">{t('actions.import', { fallback: 'Import' })}</span>
         </Button>
-        <Button variant="outline" size="sm" className="h-9 gap-2">
-          <Download className="h-4 w-4 text-muted-foreground" />
-          <span className="hidden lg:inline">{t('actions.export', { fallback: 'Export' })}</span>
-        </Button>
+        <VoucherExportButton selectedIds={selectedIds} />
         <Button size="sm" className="h-9 gap-2 shadow-sm bg-primary hover:bg-primary/90">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">{t('actions.create', { fallback: 'New Voucher' })}</span>

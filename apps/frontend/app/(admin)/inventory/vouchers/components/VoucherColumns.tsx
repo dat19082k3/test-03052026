@@ -109,7 +109,7 @@ export const getVoucherColumns = (
     id: 'actions',
     header: '',
     className: 'w-20 flex-none justify-end text-right',
-    cell: () => (
+    cell: (row: Voucher) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -123,13 +123,21 @@ export const getVoucherColumns = (
           <DropdownMenuItem>
             <FileText className="mr-2 h-4 w-4" /> View Details
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Edit className="mr-2 h-4 w-4" /> Edit
-          </DropdownMenuItem>
+          {
+            row.status === 'draft' && (
+              <DropdownMenuItem>
+                <Edit className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+            )
+          }
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-            <Trash className="mr-2 h-4 w-4" /> Delete
-          </DropdownMenuItem>
+          {
+            row.status === 'draft' && (
+              <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                <Trash className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            )
+          }
         </DropdownMenuContent>
       </DropdownMenu>
     ),

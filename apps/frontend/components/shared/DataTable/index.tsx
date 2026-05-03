@@ -25,6 +25,7 @@ export function DataTable<T>({
   manualSorting,
   onSortChange,
   sortConfig: externalSortConfig,
+  selectedRowIds,
 }: DataTableProps<T>) {
   const {
     sortConfig,
@@ -40,7 +41,8 @@ export function DataTable<T>({
     onSelectionChange,
     manualSorting,
     onSortChange,
-    sortConfig: externalSortConfig 
+    sortConfig: externalSortConfig,
+    selectedRowIds
   });
 
   return (

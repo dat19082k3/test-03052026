@@ -6,6 +6,7 @@ COPY apps/backend/package.json ./apps/backend/package.json
 COPY apps/frontend/package.json ./apps/frontend/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
 COPY packages/db/package.json ./packages/db/package.json
+COPY packages/storage/package.json ./packages/storage/package.json
 COPY packages/types/package.json ./packages/types/package.json
 COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
 COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
@@ -29,11 +30,12 @@ COPY --chown=nodejs:nodejs apps/backend/package.json ./apps/backend/package.json
 COPY --chown=nodejs:nodejs apps/frontend/package.json ./apps/frontend/package.json
 COPY --chown=nodejs:nodejs apps/worker/package.json ./apps/worker/package.json
 COPY --chown=nodejs:nodejs packages/db/package.json ./packages/db/package.json
+COPY --chown=nodejs:nodejs packages/storage/package.json ./packages/storage/package.json
 COPY --chown=nodejs:nodejs packages/types/package.json ./packages/types/package.json
 COPY --chown=nodejs:nodejs packages/typescript-config/package.json ./packages/typescript-config/package.json
 COPY --chown=nodejs:nodejs packages/eslint-config/package.json ./packages/eslint-config/package.json
 COPY --chown=nodejs:nodejs packages/ui/package.json ./packages/ui/package.json
-RUN npm ci --omit=dev --workspace backend --workspace @repo/db --workspace @repo/types --include-workspace-root=false
+RUN npm ci --omit=dev --workspace backend --workspace @repo/db --workspace @repo/types --workspace @repo/storage --include-workspace-root=false
 COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/migrations ./apps/backend/migrations
@@ -42,6 +44,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/packages/db/package.json ./packag
 COPY --from=builder --chown=nodejs:nodejs /app/packages/db/dist ./packages/db/dist
 COPY --from=builder --chown=nodejs:nodejs /app/packages/types/package.json ./packages/types/package.json
 COPY --from=builder --chown=nodejs:nodejs /app/packages/types/dist ./packages/types/dist
+COPY --from=builder --chown=nodejs:nodejs /app/packages/storage/package.json ./packages/storage/package.json
+COPY --from=builder --chown=nodejs:nodejs /app/packages/storage/dist ./packages/storage/dist
 
 USER nodejs
 EXPOSE 4000

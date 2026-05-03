@@ -23,6 +23,7 @@ export const inventoryApi = {
     tz?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    ids?: string[];
   } = {}): Promise<ApiResult<InventoryVoucher[]>> => {
     const query = new URLSearchParams();
     if (params.page !== undefined) query.append('page', params.page.toString());
@@ -34,56 +35,64 @@ export const inventoryApi = {
     if (params.tz) query.append('tz', params.tz);
     if (params.sortBy) query.append('sortBy', params.sortBy);
     if (params.sortOrder) query.append('sortOrder', params.sortOrder);
+    if (params.ids !== undefined) query.append('ids', params.ids.join(','));
     
     return apiClient.get(`${RESOURCE}?${query.toString()}`);
   },
 
-  // Fetch a single voucher by ID with details
   getVoucher: (id: string): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.get(`${RESOURCE}/${id}`);
   },
 
-  // Fetch a template with a pre-filled unique voucher number
   getVoucherTemplate: (): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.get(`${RESOURCE}/template`);
   },
 
-  // Create a new draft voucher
   createVoucher: (dto: CreateInventoryVoucherDto): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.post(RESOURCE, dto);
   },
 
-  // Update an existing draft voucher
   updateVoucher: (id: string, dto: UpdateInventoryVoucherDto): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.put(`${RESOURCE}/${id}`, dto);
   },
 
-  // Delete a draft voucher (Hard Delete)
   deleteVoucher: (id: string): Promise<ApiResult<void>> => {
     return apiClient.delete(`${RESOURCE}/${id}`);
   },
 
-  // Post a voucher (Mark as final and immutable)
   postVoucher: (id: string): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.post(`${RESOURCE}/${id}/post`);
   },
 
-  // Cancel a voucher (Specify reason)
   cancelVoucher: (id: string, dto: CancelInventoryVoucherDto): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.post(`${RESOURCE}/${id}/cancel`, dto);
   },
 
-  // Replace a cancelled voucher with a new linked draft
   replaceVoucher: (id: string, dto: ReplaceInventoryVoucherDto): Promise<ApiResult<InventoryVoucher>> => {
     return apiClient.post(`${RESOURCE}/${id}/replace`, dto);
   },
 
-  exportVouchers: (dto: ExportInventoryVouchersDto = {}): Promise<ApiResult<InventoryExcelJobStatus>> => {
-    return apiClient.post(`${RESOURCE}/export`, dto);
+  exportVouchers: (
+    dto: ExportInventoryVouchersDto,
+    excelClientId: string,
+  ): Promise<ApiResult<InventoryExcelJobStatus>> => {
+    return apiClient.post(`${RESOURCE}/export`, dto, {
+      headers: { 'X-Excel-Client-Id': excelClientId },
+    });
+  },
+
+  importVouchers: (
+    file: File,
+    excelClientId: string,
+  ): Promise<ApiResult<InventoryExcelJobStatus>> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.postMultipart(`${RESOURCE}/import`, fd, {
+      headers: { 'X-Excel-Client-Id': excelClientId },
+    });
   },
 
   getExcelJob: (jobId: string): Promise<ApiResult<InventoryExcelJobStatus>> => {
     return apiClient.get(`/inventory/excel-jobs/${jobId}`);
   },
 };
-

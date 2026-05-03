@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { inventoryController } from '../controllers/inventory.controller';
 import { validate } from '../middlewares/validate.middleware';
 import { createVoucherSchema, updateVoucherSchema } from '@repo/types';
+import { inventoryImportUpload } from '../middlewares/inventory-import-upload.middleware';
 
 const router = Router();
 
@@ -11,7 +12,13 @@ router.get('/vouchers', inventoryController.getVouchers);
 
 router.post('/vouchers/export', inventoryController.exportVouchers);
 
-router.post('/vouchers/import', inventoryController.importVouchers);
+router.post(
+  '/vouchers/import',
+  inventoryImportUpload.single('file'),
+  inventoryController.importVouchers,
+);
+
+router.get('/excel-jobs/:jobId/download', inventoryController.downloadExcelJob);
 
 router.get('/excel-jobs/:jobId', inventoryController.getExcelJob);
 

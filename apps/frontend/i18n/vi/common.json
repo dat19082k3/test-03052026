@@ -19,7 +19,23 @@
     "back": "Quay lại",
     "clearFilters": "Xóa bộ lọc",
     "clear": "Xóa",
-    "refresh": "Làm mới"
+    "refresh": "Làm mới",
+    "exportOptions": "Tùy chọn xuất",
+    "exportAll": "Xuất tất cả (Excel)",
+    "exportSelectedList": "Xuất danh sách đã chọn (Excel)",
+    "exportSelectedForms": "Xuất phiếu đã chọn (Excel)",
+    "showSelectedOnly": "Chỉ hiện mục đã chọn",
+    "selectedAllOnPage": "Đã chọn tất cả {count} mục trên trang này.",
+    "selectAllInDataset": "Chọn tất cả {count} mục trong danh sách"
+  },
+  "excel": {
+    "exportListProgress": "Đang xuất danh sách Excel…",
+    "exportFormsProgress": "Đang xuất phiếu in (mẫu TT200)…",
+    "importProgress": "Đang nhập Excel…",
+    "exportDone": "Xuất Excel hoàn tất. Tệp đã được tải xuống.",
+    "importDone": "Nhập Excel hoàn tất ({count} bản ghi).",
+    "failed": "Thao tác Excel thất bại.",
+    "downloadFailed": "Không tải được tệp. Vui lòng thử lại."
   },
   "filters": {
     "dateRange": "Khoảng ngày",
@@ -81,6 +97,9 @@
     }
   },
   "errors": {
+    "COMMON": {
+      "CONFLICT": "Đang có thao tác nhập/xuất Excel. Vui lòng đợi hoàn tất trước khi thực hiện tiếp."
+    },
     "403": {
       "title": "Từ Chối Truy Cập",
       "description": "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là sự nhầm lẫn."

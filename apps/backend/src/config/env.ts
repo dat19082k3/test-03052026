@@ -28,5 +28,14 @@ export const config = {
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
     db: parseInt(process.env.REDIS_DB || '0', 10),
-  }
+  },
+  /** Same absolute path as worker EXCEL_EXPORT_DIR when not using S3 (single-node dev). */
+  excelSharedExportDir:
+    process.env.EXCEL_SHARED_EXPORT_DIR ||
+    path.resolve(process.cwd(), '../worker/storage/exports'),
+  excelImportUploadDir:
+    process.env.EXCEL_IMPORT_UPLOAD_DIR || path.resolve(process.cwd(), 'storage/imports'),
+  excelS3FileTtlSeconds: parseInt(process.env.EXCEL_S3_FILE_TTL_SECONDS || '1800', 10),
+  /** Public browser origin for download links (e.g. https://app.example.com). */
+  publicAppOrigin: (process.env.PUBLIC_APP_ORIGIN || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, ''),
 };

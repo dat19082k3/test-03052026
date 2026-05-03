@@ -15,6 +15,7 @@ export type TableState = {
   status: string[];
   dateRange: DateRange | undefined;
   sort: SortConfig;
+  ids?: string[];
 };
 
 const PERSIST_KEY = 'vouchers_table_state';
@@ -28,7 +29,7 @@ const defaultState: TableState = {
   sort: null,
 };
 
-function parseUrlState(searchParams: URLSearchParams): TableState {
+function parseUrlState(searchParams: URLSearchParams, showOnlySelected: boolean): TableState {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = parseInt(searchParams.get('limit') || '10', 10);
   const search = searchParams.get('search') || '';
@@ -37,6 +38,7 @@ function parseUrlState(searchParams: URLSearchParams): TableState {
   const to = searchParams.get('to');
   const sortField = searchParams.get('sortBy');
   const sortOrder = searchParams.get('sortOrder') as 'asc' | 'desc';
+  const ids = searchParams.get('ids')?.split(',').filter(Boolean) || [];
 
   return {
     page,
@@ -48,6 +50,7 @@ function parseUrlState(searchParams: URLSearchParams): TableState {
       to: to ? (to.includes('T') ? new Date(to) : parse(to, 'yyyy-MM-dd', new Date())) : undefined 
     } : undefined,
     sort: sortField ? { key: sortField, direction: sortOrder } : null,
+    ids: showOnlySelected ? ids : undefined,
   };
 }
 
@@ -58,8 +61,16 @@ export function useVouchers() {
   const queryClient = useQueryClient();
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [mounted, setMounted] = useState(false);
 
   // 1. Initial state (Synchronous to avoid race conditions)
+  const [showOnlySelected, setShowOnlySelected] = useState(() => searchParams.has('ids'));
+  const [snapshotIds, setSnapshotIds] = useState<string[] | undefined>(() => {
+    if (searchParams.has('ids')) {
+      return searchParams.get('ids')?.split(',').filter(Boolean) || [];
+    }
+    return undefined;
+  });
   const [tableState, setTableState] = useState<TableState>(() => {
     const hasParams = searchParams.has('page') || 
                       searchParams.has('limit') || 
@@ -70,28 +81,37 @@ export function useVouchers() {
     if (hasParams) {
       // Create a plain URLSearchParams from ReadonlyURLSearchParams
       const params = new URLSearchParams(searchParams.toString());
-      return parseUrlState(params);
-    }
-
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(PERSIST_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          // Hydrate dates
-          if (parsed.dateRange) {
-            if (parsed.dateRange.from) parsed.dateRange.from = new Date(parsed.dateRange.from);
-            if (parsed.dateRange.to) parsed.dateRange.to = new Date(parsed.dateRange.to);
-          }
-          return parsed;
-        }
-      } catch (e) {
-        console.error('Failed to restore voucher state', e);
-      }
+      return parseUrlState(params, showOnlySelected);
     }
 
     return defaultState;
   });
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const saved = localStorage.getItem(PERSIST_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Hydrate dates
+        if (parsed.dateRange) {
+          if (parsed.dateRange.from) parsed.dateRange.from = new Date(parsed.dateRange.from);
+          if (parsed.dateRange.to) parsed.dateRange.to = new Date(parsed.dateRange.to);
+        }
+        setTableState(prev => {
+          // Only hydrate if the URL doesn't already have relevant params
+          // This keeps URL as the primary source of truth
+          const hasUrlParams = searchParams.has('page') || 
+                               searchParams.has('ids') || 
+                               searchParams.has('search');
+          if (hasUrlParams) return prev;
+          return { ...prev, ...parsed };
+        });
+      }
+    } catch (e) {
+      console.error('Failed to restore voucher state', e);
+    }
+  }, []); // Only once on mount
 
   // 2. Persistent save to localStorage
   useEffect(() => {
@@ -111,10 +131,12 @@ export function useVouchers() {
       params.set('sortBy', state.sort.key);
       params.set('sortOrder', state.sort.direction);
     }
-    
+    if (state.ids && state.ids.length > 0 && showOnlySelected) {
+      params.set('ids', state.ids.join(','));
+    }    
     const query = params.toString();
     router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
-  }, [pathname, router]);
+  }, [pathname, router, showOnlySelected]);
 
   // Update URL whenever tableState changes
   useEffect(() => {
@@ -135,7 +157,17 @@ export function useVouchers() {
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     sortBy: debouncedState.sort?.key,
     sortOrder: debouncedState.sort?.direction,
-  }), [debouncedState]);
+    ids: showOnlySelected ? snapshotIds : undefined,
+  }), [
+    debouncedState.page, 
+    debouncedState.pageSize, 
+    debouncedState.search, 
+    debouncedState.status, 
+    debouncedState.dateRange, 
+    debouncedState.sort, 
+    showOnlySelected, 
+    snapshotIds
+  ]);
 
   // 6. Data Fetching via TanStack Query
   const { data: queryResult, isLoading, isPlaceholderData, refetch, isFetching } = useQuery({
@@ -146,6 +178,13 @@ export function useVouchers() {
 
   const vouchers = queryResult?.success ? queryResult.data : [];
   const meta = (queryResult?.success ? queryResult.meta : null) || { total: 0, totalPages: 0 };
+
+  // 6.5 Automatic Pagination Correction
+  useEffect(() => {
+    if (meta.totalPages > 0 && tableState.page > meta.totalPages) {
+      setTableState(prev => ({ ...prev, page: meta.totalPages }));
+    }
+  }, [meta.totalPages, tableState.page]);
 
   // 7. Prefetch Next Page
   useEffect(() => {
@@ -203,6 +242,27 @@ export function useVouchers() {
     });
   };
 
+  const handleIdsChange = (ids: string[]) => {
+    setTableState(prev => ({ ...prev, ids }));
+  };
+
+  const handleShowOnlySelectedChange = (value: boolean) => {
+    if (value && !showOnlySelected) {
+      setSnapshotIds(tableState.ids);
+      setTableState(prev => ({ ...prev, page: 1 }));
+    } else if (!value) {
+      setSnapshotIds(undefined);
+    }
+    setShowOnlySelected(value);
+  };
+
+  const handleRefresh = async () => {
+    if (showOnlySelected) {
+      setSnapshotIds(tableState.ids);
+    }
+    await refetch();
+  };
+
   return {
     // Data & Loading
     data: vouchers,
@@ -219,8 +279,10 @@ export function useVouchers() {
     selectedStatuses: tableState.status,
     dateRange: tableState.dateRange,
     sortConfig: tableState.sort,
+    selectedIds: tableState.ids,
     locale,
     timezone,
+    showOnlySelected,
     
     // Actions
     setCurrentPage: handlePageChange,
@@ -231,6 +293,9 @@ export function useVouchers() {
     handleSort,
     handleFilter: handleFilterAction,
     handleDateRangeChange: handleDateRangeAction,
-    refetch,
+    handleIdsChange,
+    handleShowOnlySelectedChange,
+    refetch: handleRefresh,
+    mounted,
   };
 }

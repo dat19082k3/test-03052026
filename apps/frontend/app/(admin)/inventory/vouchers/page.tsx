@@ -8,8 +8,9 @@ import { VoucherFilters } from './components/VoucherFilters';
 import { getVoucherColumns, Voucher } from './components/VoucherColumns';
 import { useVouchers } from './hooks/useVouchers';
 import { cn } from '@/lib/utils';
+import { InventoryExcelProvider } from './context/InventoryExcelContext';
 
-export default function VouchersPage() {
+function VouchersPageContent() {
   const t = useTranslations('common');
   
   const {
@@ -33,9 +34,17 @@ export default function VouchersPage() {
     isPlaceholderData,
     locale,
     timezone,
-    refetch
+    refetch,
+    selectedIds,
+    handleIdsChange,
+    showOnlySelected,
+    handleShowOnlySelectedChange,
   } = useVouchers();
   
+  const handleSelectionChange = (selectedKeys: string[]) => {
+    handleIdsChange(selectedKeys);
+  };
+
   const currentData: Voucher[] = data.map(v => ({
     id: v.id,
     voucherNo: v.voucher_number,
@@ -46,13 +55,9 @@ export default function VouchersPage() {
     creator: v.created_by || '',
   }));
 
+  const filteredData = currentData;
+
   const columns = getVoucherColumns(t, locale, timezone);
-
-  const handleSelectionChange = (selectedKeys: string[]) => {
-    console.log('Selected:', selectedKeys);
-  };
-
-  console.log(currentData);
 
   return (
     <div className="flex flex-col h-[calc(100vh-11.5rem)] min-h-[500px] gap-4 w-full">
@@ -66,15 +71,20 @@ export default function VouchersPage() {
         locale={locale}
         onRefresh={refetch}
         isRefreshing={isFetching}
+        selectedIds={selectedIds || []}
+        showOnlySelected={showOnlySelected}
+        onShowOnlySelectedChange={handleShowOnlySelectedChange}
+        onImportSuccess={refetch}
       />
       
       <div className="flex-1 flex flex-col min-h-0 bg-background rounded-xl border shadow-sm">
         <DataTable
            columns={columns}
-           data={currentData}
+           data={filteredData}
            keyExtractor={(row) => row.id}
            selectable
            onSelectionChange={handleSelectionChange}
+           selectedRowIds={selectedIds}
            emptyMessage={(isLoading || isFetching) ? t('status.loading', { fallback: 'Loading...' }) : t('status.noData', { fallback: 'No data found' })}
            className={cn("border-none rounded-none shadow-none flex-1", isFetching && "opacity-50 pointer-events-none transition-opacity")}
            manualSorting
@@ -94,5 +104,13 @@ export default function VouchersPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VouchersPage() {
+  return (
+    <InventoryExcelProvider>
+      <VouchersPageContent />
+    </InventoryExcelProvider>
   );
 }

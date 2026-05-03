@@ -14,6 +14,7 @@ export interface DataTableProps<T> {
   keyExtractor: (row: T) => string;
   selectable?: boolean;
   onSelectionChange?: (selectedKeys: string[]) => void;
+  selectedRowIds?: string[];
   className?: string;
   emptyMessage?: React.ReactNode;
   manualSorting?: boolean;

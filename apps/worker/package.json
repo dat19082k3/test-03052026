@@ -4,15 +4,20 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "predev": "npm run build -w @repo/db",
+    "predev": "npm run build -w @repo/db && npm run build -w @repo/storage",
     "dev": "NODE_ENV=development ts-node-dev --respawn --transpile-only src/index.ts",
-    "prebuild": "npm run build -w @repo/db",
+    "prebuild": "npm run build -w @repo/db && npm run build -w @repo/storage",
     "build": "tsc -p tsconfig.build.json",
     "start": "NODE_ENV=production node dist/index.js",
+    "upload-templates": "ts-node --project tsconfig.script.json scripts/upload-templates.ts",
+    "pretest": "npm run build -w @repo/types && npm run build -w @repo/db && npm run build -w @repo/storage",
+    "test": "jest --config jest.config.cjs",
     "lint": "eslint ."
   },
   "dependencies": {
     "@repo/db": "*",
+    "@repo/storage": "*",
+    "@repo/types": "*",
     "bullmq": "^5.65.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.4.2",
@@ -25,9 +30,12 @@
   "devDependencies": {
     "@repo/eslint-config": "^0.0.0",
     "@repo/typescript-config": "^0.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.6.0",
     "@types/pg": "^8.20.0",
     "eslint": "^10.2.1",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
   }

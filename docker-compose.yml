@@ -90,6 +90,13 @@ services:
     environment:
       <<: [*app-env, *db-env, *redis-env]
       PORT: ${BACKEND_PORT:-4000}
+      # S3 Configuration
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-inventory-vouchers}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
     ports:
       - "${BACKEND_PORT:-4000}:4000"
     depends_on:
@@ -108,21 +115,35 @@ services:
       dockerfile: apps/worker/Dockerfile
     restart: unless-stopped
     logging: *default-logging
-    # Basic process check for worker health
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep 'node apps/worker/dist/index.js' || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:'+(process.env.WORKER_HEALTH_PORT||9090)+'/health').then(r=>r.json().then(j=>process.exit(j.ok?0:1))).catch(()=>process.exit(1))\"",
+        ]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
+      start_period: 45s
     environment:
       <<: [*app-env, *db-env, *redis-env]
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
-      INVENTORY_VOUCHER_TEMPLATE_PATH: ${INVENTORY_VOUCHER_TEMPLATE_PATH:-/templates/pn.xlsx}
+      WORKER_HEALTH_PORT: ${WORKER_HEALTH_PORT:-9090}
+      INVENTORY_VOUCHER_TEMPLATE_PATH: ${INVENTORY_VOUCHER_TEMPLATE_PATH:-/templates/phieu_nhap_kho.xlsx}
       EXCEL_EXPORT_DIR: ${EXCEL_EXPORT_DIR:-/app/storage/exports}
       EXCEL_EXPORT_BATCH_SIZE: ${EXCEL_EXPORT_BATCH_SIZE:-5000}
       EXCEL_IMPORT_BATCH_SIZE: ${EXCEL_IMPORT_BATCH_SIZE:-1000}
+      # S3 Configuration
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-inventory-vouchers}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_VOUCHER_FORM_TEMPLATE_KEY: ${S3_VOUCHER_FORM_TEMPLATE_KEY:-templates/phieu_nhap_kho.xlsx}
+      S3_VOUCHER_LIST_TEMPLATE_KEY: ${S3_VOUCHER_LIST_TEMPLATE_KEY:-templates/danh_sach_phieu_nhap_kho.xlsx}
     volumes:
-      - ${VOUCHER_TEMPLATE_HOST_PATH:-./pn.xlsx}:/templates/pn.xlsx:ro
+      - ${VOUCHER_TEMPLATE_HOST_PATH:-./packages/templates/phieu_nhap_kho.xlsx}:/templates/phieu_nhap_kho.xlsx:ro
       - worker_exports:/app/storage/exports
     depends_on:
       postgres:
@@ -131,6 +152,43 @@ services:
         condition: service_healthy
       migration:
         condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - app_network
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    logging: *default-logging
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - app_network
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    logging: *default-logging
+    volumes:
+      - ./packages/templates:/initial-templates:ro
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin) do echo '...waiting for MinIO...' && sleep 1; done;
+      /usr/bin/mc mb --ignore-existing local/inventory-vouchers;
+      /usr/bin/mc anonymous set public local/inventory-vouchers;
+      /usr/bin/mc cp /initial-templates/phieu_nhap_kho.xlsx local/inventory-vouchers/templates/phieu_nhap_kho.xlsx;
+      /usr/bin/mc cp /initial-templates/danh_sach_phieu_nhap_kho.xlsx local/inventory-vouchers/templates/danh_sach_phieu_nhap_kho.xlsx;
+      echo 'MinIO Bucket created and templates uploaded successfully';
+      "
     networks:
       - app_network
 
@@ -160,3 +218,4 @@ volumes:
   postgres_data:
   redis_data:
   worker_exports:
+  minio_data:

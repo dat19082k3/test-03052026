@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, type Express } from 'express';
 import { AppError } from '../utils/app-error';
 import {
   ErrorCode,
@@ -36,6 +36,7 @@ export class InventoryController {
       const tz = req.query.tz as string;
       const sortBy = req.query.sortBy as string;
       const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+      const ids = req.query.ids ? (req.query.ids as string).split(',').filter(Boolean) : undefined;
 
       const result = await inventoryService.getVouchers({
         page,
@@ -47,6 +48,7 @@ export class InventoryController {
         tz,
         sortBy,
         sortOrder,
+        ids,
       });
       res.status(200).json({ status: 'success', ...result });
     } catch (error) {
@@ -116,12 +118,14 @@ export class InventoryController {
       voucherIds?: string[];
       voucherId?: string;
       templatePath?: string;
+      excelClientId?: string;
     }>,
     res: Response,
     next: NextFunction,
   ) {
     try {
       const body = req.body || {};
+      const excelClientId = String(req.get('x-excel-client-id') || body.excelClientId || '').trim();
       const result = await inventoryService.enqueueVoucherExport({
         mode: body.mode || (req.query.mode as any),
         voucherIds: body.voucherIds,
@@ -130,6 +134,7 @@ export class InventoryController {
         startDate: body.mode ? undefined : req.query.startDate as string,
         endDate: body.mode ? undefined : req.query.endDate as string,
         templatePath: body.templatePath,
+        excelClientId,
       });
       res.status(202).json({ status: 'success', data: result });
     } catch (error) {
@@ -137,17 +142,16 @@ export class InventoryController {
     }
   }
 
-  public async importVouchers(req: Request<any, any, { filePath: string }>, res: Response, next: NextFunction) {
+  public async importVouchers(req: Request, res: Response, next: NextFunction) {
     try {
-      if (!req.body.filePath) {
+      const file = (req as Request & { file?: Express.Multer.File }).file;
+      if (!file) {
         throw new AppError(ErrorCode.VALIDATION.REQUIRED, 400, [
-          { field: 'filePath', code: ErrorCode.VALIDATION.REQUIRED },
+          { field: 'file', code: ErrorCode.VALIDATION.REQUIRED },
         ]);
       }
-
-      const result = await inventoryService.enqueueVoucherImport({
-        filePath: req.body.filePath,
-      });
+      const excelClientId = String(req.get('x-excel-client-id') || '').trim();
+      const result = await inventoryService.enqueueVoucherImportFromUpload(file, excelClientId);
       res.status(202).json({ status: 'success', data: result });
     } catch (error) {
       next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
@@ -158,6 +162,14 @@ export class InventoryController {
     try {
       const result = await inventoryService.getInventoryExcelJob(req.params.jobId);
       res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
+    }
+  }
+
+  public async downloadExcelJob(req: Request<{ jobId: string }>, res: Response, next: NextFunction) {
+    try {
+      await inventoryService.streamInventoryExcelDownload(req.params.jobId, res);
     } catch (error) {
       next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));
     }

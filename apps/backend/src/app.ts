@@ -36,7 +36,7 @@ app.use(pinoHttp({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
 });
 app.use(limiter);
 
@@ -46,12 +46,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes
 app.use('/api/v1/inventory', inventoryRoutes);
 
-// Global error handler (must be last)
-app.use(errorHandler);
-
-// Health check endpoint for Docker
+// Health check (before error handler; error middleware only runs on next(err))
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 export default app;

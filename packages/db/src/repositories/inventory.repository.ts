@@ -89,10 +89,11 @@ export interface FindVouchersOptions {
   endDate?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  ids?: string[];
 }
 
 export function buildVoucherFilters(
-  options: Pick<FindVouchersOptions, 'search' | 'status' | 'startDate' | 'endDate'> & {
+  options: Pick<FindVouchersOptions, 'search' | 'status' | 'startDate' | 'endDate' | 'ids'> & {
     excludeCancelledByDefault?: boolean;
   },
 ) {
@@ -121,6 +122,15 @@ export function buildVoucherFilters(
   if (options.endDate) {
     conditions.push(`voucher_date < $${paramIdx}`);
     values.push(options.endDate);
+    paramIdx++;
+  }
+  
+  if (options.ids !== undefined) {
+    if (options.ids.length === 0) {
+      return { values: [], nextParamIdx: 1, whereClause: 'WHERE 1 = 0' };
+    }
+    conditions.push(`id = ANY($${paramIdx})`);
+    values.push(options.ids);
     paramIdx++;
   }
 
