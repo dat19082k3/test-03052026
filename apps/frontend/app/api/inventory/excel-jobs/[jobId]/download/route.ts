@@ -21,15 +21,28 @@ export async function GET(
     method: 'GET',
     headers,
     cache: 'no-store',
+    redirect: 'manual',
     signal: AbortSignal.timeout(300_000),
   });
+
+  if (res.status === 307 || res.status === 302 || res.status === 301) {
+    const location = res.headers.get('location');
+    if (location) {
+      return NextResponse.redirect(location, { status: 307 });
+    }
+  }
 
   if (!res.ok) {
     let payload: Record<string, unknown> = { status: 'error', code: 'DOWNLOAD_FAILED' };
     try {
-      payload = (await res.json()) as Record<string, unknown>;
+      const cloned = res.clone();
+      try {
+        payload = (await cloned.json()) as Record<string, unknown>;
+      } catch {
+        payload.message = await cloned.text();
+      }
     } catch {
-      payload.message = await res.text();
+      // Fallback if clone or read fails
     }
     return NextResponse.json(payload, { status: res.status });
   }

@@ -3,24 +3,36 @@ import { createInventoryExcelWorker } from './jobs/inventory-excel.worker';
 import { createHealthHttpServer, listenHealthServer } from './health/http-server';
 import { config } from './config/env';
 import { logger } from './utils/logger';
+import { waitUntilRedisReady } from './config/redis';
 
-const worker = createInventoryExcelWorker();
-const healthServer = createHealthHttpServer();
+async function bootstrap() {
+  try {
+    await waitUntilRedisReady();
 
-void listenHealthServer(healthServer).then(() => {
-  logger.info({ port: config.healthPort }, 'Worker health server listening');
-});
+    const worker = createInventoryExcelWorker();
+    const healthServer = createHealthHttpServer();
 
-logger.info('Inventory Excel worker started');
+    void listenHealthServer(healthServer).then(() => {
+      logger.info({ port: config.healthPort }, 'Worker health server listening');
+    });
 
-async function shutdown(signal: string) {
-  logger.info({ signal }, 'Shutting down worker');
-  await new Promise<void>((resolve, reject) => {
-    healthServer.close((err) => (err ? reject(err) : resolve()));
-  });
-  await worker.close();
-  process.exit(0);
+    logger.info('Inventory Excel worker started');
+
+    async function shutdown(signal: string) {
+      logger.info({ signal }, 'Shutting down worker');
+      await new Promise<void>((resolve, reject) => {
+        healthServer.close((err) => (err ? reject(err) : resolve()));
+      });
+      await worker.close();
+      process.exit(0);
+    }
+
+    process.on('SIGINT', () => void shutdown('SIGINT'));
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  } catch (err) {
+    logger.error({ err }, 'Failed to start worker');
+    process.exit(1);
+  }
 }
 
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
+void bootstrap();

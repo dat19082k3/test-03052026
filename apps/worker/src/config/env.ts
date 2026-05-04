@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import { expand } from 'dotenv-expand';
+import os from 'os';
 import path from 'path';
 
 const nodeEnv = process.env.NODE_ENV || 'development';
@@ -7,14 +9,14 @@ const envFile = nodeEnv === 'development' ? '.env.development' : '.env';
 const localEnvPath = path.resolve(process.cwd(), envFile);
 const rootEnvPath = path.resolve(process.cwd(), '../../', envFile);
 
-dotenv.config({ path: localEnvPath });
-dotenv.config({ path: rootEnvPath });
+expand(dotenv.config({ path: localEnvPath, override: true }));
+expand(dotenv.config({ path: rootEnvPath, override: true }));
 
 export const config = {
   nodeEnv,
   logLevel: process.env.LOG_LEVEL || (nodeEnv === 'development' ? 'debug' : 'info'),
   concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),
-  exportDir: process.env.EXCEL_EXPORT_DIR || path.resolve(process.cwd(), 'storage/exports'),
+  exportDir: process.env.EXCEL_EXPORT_DIR || os.tmpdir(),
   /** When set, worker loads the voucher form template from S3. */
   s3VoucherFormTemplateKey: process.env.S3_VOUCHER_FORM_TEMPLATE_KEY?.trim() || '',
   /** When set, worker loads the voucher list template from S3. */

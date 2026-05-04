@@ -1,17 +1,19 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import ExcelJS from 'exceljs';
 import {
   bulkUpsertVouchersForImport,
   findVoucherPrintDataByIds,
   findVouchersByIdsForExport,
   findVouchersForExport,
+  getVouchersFingerprint,
   type ImportVoucherRow,
 } from '@repo/db';
 import {
   createS3Client,
   downloadObjectToFile,
+  getObjectMetadata,
   putObjectFile,
   readS3ConfigFromEnv,
 } from '@repo/storage';
@@ -47,24 +49,25 @@ async function finalizeExcelOutput(params: {
   fileName: string;
   processed: number;
   keepLocalFile?: boolean;
+  metadata?: Record<string, string>;
 }): Promise<InventoryExcelJobResult> {
   const s3cfg = readS3ConfigFromEnv();
   if (s3cfg) {
     const client = createS3Client(s3cfg);
-    const key = `excel/exports/${params.jobId}/${params.fileName}`;
+    const key = `storage/exports/${params.fileName}`;
     await putObjectFile({
       client,
       bucket: s3cfg.bucket,
       key,
       filePath: params.localFilePath,
       contentType: XLSX_CONTENT,
+      metadata: params.metadata,
     });
     
     if (!params.keepLocalFile) {
       await fs.promises.unlink(params.localFilePath).catch(() => undefined);
     }
 
-    await scheduleS3Cleanup(key);
     return {
       storage: 's3',
       fileName: params.fileName,
@@ -145,7 +148,7 @@ function applyListColumns(worksheet: ExcelJS.Worksheet) {
 
 async function exportVoucherList(options: ExportOptions) {
   const startTime = Date.now();
-  const timeoutMs = options.lockTtl ? options.lockTtl * 1000 : 3600000; // Default 1h
+  const timeoutMs = options.lockTtl ? options.lockTtl * 1000 : 3600000;
 
   const checkTimeout = () => {
     if (Date.now() - startTime > timeoutMs) {
@@ -153,45 +156,87 @@ async function exportVoucherList(options: ExportOptions) {
     }
   };
 
+  const now = new Date();
+  const dateSuffix = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+  const fileName = `danh-sach-phieu-nhap-kho-${dateSuffix}.xlsx`;
+
+  // 1. Check Caching
+  const s3cfg = readS3ConfigFromEnv();
+  const fingerprint = await getVouchersFingerprint(pool, {
+    status: options.status,
+    startDate: options.startDate,
+    endDate: options.endDate,
+    voucherIds: options.mode === 'list_selected' ? options.voucherIds : undefined,
+  });
+
+  if (s3cfg) {
+    const client = createS3Client(s3cfg);
+    const key = `storage/exports/${fileName}`;
+    const metadata = await getObjectMetadata({ client, bucket: s3cfg.bucket, key });
+    
+    if (metadata && metadata.fingerprint === fingerprint) {
+      return {
+        storage: 's3',
+        fileName,
+        s3Key: key,
+        processed: 0, // Cached
+        fileExpiresInSeconds: config.excelS3FileTtlSeconds,
+      };
+    }
+  }
+
   await fs.promises.mkdir(config.exportDir, { recursive: true });
 
   const templatePath = await resolveTemplatePath('danh_sach_phieu_nhap_kho.xlsx', options.templatePath);
-  const templateWorkbook = new ExcelJS.Workbook();
-  await templateWorkbook.xlsx.readFile(templatePath);
-  const templateWorksheet = templateWorkbook.worksheets[0];
-  if (!templateWorksheet) {
+  const filePath = path.join(config.exportDir, `export-${options.jobId}.xlsx`);
+
+  // Use copy-then-modify approach to preserve everything in the template
+  await fs.promises.copyFile(templatePath, filePath);
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
     throw new Error(`Template has no worksheet: ${templatePath}`);
   }
 
-  const fileName = `danh-sach-phieu-nhap-kho-${options.jobId}.xlsx`;
-  const filePath = path.join(config.exportDir, fileName);
-  
-  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-    filename: filePath,
-    useSharedStrings: true,
-    useStyles: true,
-  });
-  const worksheet = workbook.addWorksheet(templateWorksheet.name, {
-    views: templateWorksheet.views,
-  });
-  copyWorksheet(templateWorksheet, worksheet);
+  // Set keys for column mapping (A-L)
+  worksheet.getColumn(1).key = 'stt';
+  worksheet.getColumn(2).key = 'voucher_number';
+  worksheet.getColumn(3).key = 'voucher_date';
+  worksheet.getColumn(4).key = 'status';
+  worksheet.getColumn(5).key = 'deliverer_name';
+  worksheet.getColumn(6).key = 'warehouse_name';
+  worksheet.getColumn(7).key = 'unit_name';
+  worksheet.getColumn(8).key = 'department_name';
+  worksheet.getColumn(9).key = 'debit_account';
+  worksheet.getColumn(10).key = 'credit_account';
+  worksheet.getColumn(11).key = 'total_amount';
+  worksheet.getColumn(12).key = 'notes';
 
   let processed = 0;
   let lastCreatedAt: string | undefined;
   let lastId: string | undefined;
-  const dataStartRow = 3; // Assuming header is on row 2
+  const dataStartRow = 6; // Matching template screenshot
 
   if (options.mode === 'list_selected') {
     const rows = await findVouchersByIdsForExport(pool, options.voucherIds || []);
     rows.forEach((row, index) => {
-      worksheet.getRow(dataStartRow + index).values = {
+      const rowNumber = dataStartRow + index;
+      const excelRow = worksheet.getRow(rowNumber);
+      excelRow.values = {
         stt: index + 1,
         voucher_number: row.voucher_number,
         voucher_date: formatDate(row.voucher_date),
         status: row.status,
         deliverer_name: row.deliverer_name,
         warehouse_name: row.warehouse_name,
-        total_amount: row.total_amount_numeric,
+        unit_name: row.unit_name,
+        department_name: row.department_name,
+        debit_account: row.debit_account,
+        credit_account: row.credit_account,
+        total_amount: Number(row.total_amount_numeric),
+        notes: row.cancel_reason || '',
       };
       processed++;
     });
@@ -210,15 +255,22 @@ async function exportVoucherList(options: ExportOptions) {
       if (rows.length === 0) break;
 
       rows.forEach((row) => {
-        worksheet.insertRow(dataStartRow + processed, {
+        const rowNumber = dataStartRow + processed;
+        const excelRow = worksheet.getRow(rowNumber);
+        excelRow.values = {
           stt: processed + 1,
           voucher_number: row.voucher_number,
           voucher_date: formatDate(row.voucher_date),
           status: row.status,
           deliverer_name: row.deliverer_name,
           warehouse_name: row.warehouse_name,
-          total_amount: row.total_amount_numeric,
-        });
+          unit_name: row.unit_name,
+          department_name: row.department_name,
+          debit_account: row.debit_account,
+          credit_account: row.credit_account,
+          total_amount: Number(row.total_amount_numeric),
+          notes: row.cancel_reason || '',
+        };
         processed++;
       });
 
@@ -230,10 +282,9 @@ async function exportVoucherList(options: ExportOptions) {
     }
   }
 
-  worksheet.commit();
-  await workbook.commit();
+  await workbook.xlsx.writeFile(filePath);
 
-  return finalizeExcelOutput({ jobId: options.jobId, localFilePath: filePath, fileName, processed, keepLocalFile: false });
+  return finalizeExcelOutput({ jobId: options.jobId, localFilePath: filePath, fileName, processed, metadata: { fingerprint } });
 }
 
 function copyWorksheet(source: ExcelJS.Worksheet, target: ExcelJS.Worksheet) {
@@ -391,29 +442,39 @@ async function exportVoucherForms(options: ExportOptions) {
     throw new Error('No vouchers found for form export');
   }
 
-  const templateWorkbook = new ExcelJS.Workbook();
-  await templateWorkbook.xlsx.readFile(templatePath);
-  const templateWorksheet = templateWorkbook.worksheets[0];
-  if (!templateWorksheet) {
-    throw new Error(`Template has no worksheet: ${templatePath}`);
-  }
-
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'inventory-worker';
-  workbook.created = new Date();
-
-  vouchers.forEach((voucher, index) => {
-    const worksheet = workbook.addWorksheet(safeSheetName(voucher.voucher_number, `Voucher ${index + 1}`));
-    copyWorksheet(templateWorksheet, worksheet);
-    fillVoucherForm(worksheet, voucher);
-    checkTimeout();
-  });
-
   const fileName =
     options.mode === 'form_single'
       ? `inventory-voucher-form-${vouchers[0].voucher_number || options.jobId}.xlsx`
       : `inventory-voucher-forms-${options.jobId}.xlsx`;
   const filePath = path.join(config.exportDir, fileName);
+
+  // Copy template first
+  await fs.promises.copyFile(templatePath, filePath);
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  
+  const templateWorksheet = workbook.worksheets[0];
+  if (!templateWorksheet) {
+    throw new Error(`Template has no worksheet: ${templatePath}`);
+  }
+
+  vouchers.forEach((voucher, index) => {
+    // For the first voucher, we can use the original worksheet from the copy
+    // For subsequent ones, we add a new sheet and copy from the first one
+    let worksheet: ExcelJS.Worksheet;
+    if (index === 0) {
+      worksheet = templateWorksheet;
+      worksheet.name = safeSheetName(voucher.voucher_number, `Voucher ${index + 1}`);
+    } else {
+      worksheet = workbook.addWorksheet(safeSheetName(voucher.voucher_number, `Voucher ${index + 1}`));
+      copyWorksheet(templateWorksheet, worksheet);
+    }
+    
+    fillVoucherForm(worksheet, voucher);
+    checkTimeout();
+  });
+
   await workbook.xlsx.writeFile(filePath);
   await options.onProgress?.(vouchers.length);
 

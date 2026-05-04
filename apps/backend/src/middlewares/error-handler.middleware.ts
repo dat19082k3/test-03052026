@@ -10,6 +10,13 @@ export const errorHandler = (
   _next: NextFunction,
 ): void => {
   if (err instanceof AppError) {
+    logger.error({ 
+      jobId: (err as any).params?.jobId, 
+      code: err.code, 
+      statusCode: err.statusCode,
+      message: err.message,
+      errors: err.errors
+    }, 'AppError caught in errorHandler');
     res.status(err.statusCode).json({
       status: 'error',
       code: err.code,

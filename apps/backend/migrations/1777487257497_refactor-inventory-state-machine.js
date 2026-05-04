@@ -1,12 +1,12 @@
 /**
  * @type {import('node-pg-migrate').ColumnDefinitions | undefined}
  */
-export const shorthands = undefined;
+exports.shorthands = undefined;
 
 /**
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  */
-export const up = (pgm) => {
+exports.up = (pgm) => {
   // 1. Add new columns
   pgm.addColumns('inventory_vouchers', {
     status: {
@@ -61,7 +61,7 @@ export const up = (pgm) => {
 /**
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  */
-export const down = (pgm) => {
+exports.down = (pgm) => {
   // Restore deleted_at column
   pgm.addColumns('inventory_vouchers', {
     deleted_at: {

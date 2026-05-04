@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { randomUUID } from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { Express, Response } from 'express';
 import {
   CreateInventoryVoucherDto,
@@ -570,6 +570,7 @@ export async function enqueueVoucherExport(options: {
         delay: 5000,
       }
     );
+    logger.info({ jobId: job.id, requestedJobId: jobId }, 'Job enqueued successfully');
     return { jobId: job.id, state: await job.getState() };
   } catch (error) {
     await releaseInventoryExcelLock(redis, excelClientId);
@@ -645,11 +646,19 @@ export async function enqueueVoucherImportFromUpload(file: Express.Multer.File, 
 export async function getInventoryExcelJob(jobId: string): Promise<InventoryExcelJobStatus> {
   const inventoryExcelQueue = getInventoryExcelQueue();
   const job = await inventoryExcelQueue.getJob(jobId);
-  if (!job) throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  if (!job) {
+    logger.error({ jobId }, 'Get job failed: not found');
+    throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  }
 
   const state = await job.getState();
   const baseRv = job.returnvalue as InventoryExcelJobResult | null | undefined;
   let returnvalue: InventoryExcelJobResult | null = baseRv ?? null;
+
+  if (state === 'failed') {
+    logger.error({ jobId, failedReason: job.failedReason }, 'Excel job failed');
+    throw new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500);
+  }
 
   const out: InventoryExcelJobStatus = {
     jobId: job.id,
@@ -661,7 +670,7 @@ export async function getInventoryExcelJob(jobId: string): Promise<InventoryExce
   };
 
   if (state === 'completed' && job.name === 'export-vouchers' && returnvalue?.fileName) {
-    const rel = `/api/inventory/excel-jobs/${jobId}/download`;
+    const rel = `/api/v1/inventory/excel-jobs/${jobId}/download`;
     const full = config.publicAppOrigin ? `${config.publicAppOrigin}${rel}` : rel;
     returnvalue = { ...returnvalue, downloadPath: full };
     out.downloadPath = full;
@@ -687,32 +696,59 @@ export async function getInventoryExcelJob(jobId: string): Promise<InventoryExce
 export async function streamInventoryExcelDownload(jobId: string, res: Response) {
   const inventoryExcelQueue = getInventoryExcelQueue();
   const job = await inventoryExcelQueue.getJob(jobId);
-  if (!job) throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  if (!job) {
+    logger.error({ jobId }, 'Download failed: job not found in queue');
+    throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
+  }
 
   const state = await job.getState();
+  if (state === 'failed') {
+    logger.error({ jobId, failedReason: job.failedReason }, 'Download failed: job state is failed');
+    throw new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500);
+  }
   if (state !== 'completed') {
+    logger.warn({ jobId, state }, 'Download failed: job not completed');
     throw new AppError(ErrorCode.VALIDATION.FAILED, 400, [
-      { field: 'jobId', code: ErrorCode.VALIDATION.FAILED, params: { reason: 'not_completed' } },
+      { field: 'jobId', code: ErrorCode.VALIDATION.FAILED, params: { reason: 'not_completed', state } },
     ]);
   }
   if (job.name !== 'export-vouchers') {
+    logger.warn({ jobId, name: job.name }, 'Download failed: not an export job');
     throw new AppError(ErrorCode.VALIDATION.FAILED, 400, [
       { field: 'jobId', code: ErrorCode.VALIDATION.FAILED, params: { reason: 'not_export_job' } },
     ]);
   }
 
   const rv = job.returnvalue as InventoryExcelJobResult | undefined;
+
   if (!rv?.fileName) {
+    logger.error({ jobId, rv }, 'Download failed: fileName missing in result');
     throw new AppError(ErrorCode.COMMON.NOT_FOUND, 404);
   }
 
   const s3cfg = readS3ConfigFromEnv();
+  logger.info({ jobId, hasS3: !!s3cfg, storage: rv.storage }, 'Download S3 config check');
+
   if (rv.storage === 's3' && rv.s3Key && s3cfg) {
     const client = createS3Client(s3cfg);
-    const stream = await getObjectStream({ client, bucket: s3cfg.bucket, key: rv.s3Key });
-    res.setHeader('Content-Type', XLSX_CONTENT);
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(rv.fileName)}`);
-    stream.pipe(res);
+    const presignedUrl = await presignGetObject({
+      client,
+      bucket: s3cfg.bucket,
+      key: rv.s3Key,
+      expiresInSeconds: 300,
+    });
+
+    // Handle endpoint rewriting for public access if needed
+    let finalUrl = presignedUrl;
+    if (config.s3PublicEndpoint && s3cfg.endpoint) {
+      const internal = new URL(s3cfg.endpoint).origin;
+      const publicOrigin = new URL(config.s3PublicEndpoint).origin;
+      if (finalUrl.startsWith(internal)) {
+        finalUrl = publicOrigin + finalUrl.slice(internal.length);
+      }
+    }
+
+    res.redirect(307, finalUrl);
     return;
   }
 

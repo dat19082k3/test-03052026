@@ -4,7 +4,8 @@
     "UNAUTHORIZED": "Bạn chưa đăng nhập. Vui lòng đăng nhập.",
     "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "NOT_FOUND": "Không tìm thấy tài nguyên yêu cầu.",
-    "RATE_LIMITED": "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+    "RATE_LIMITED": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+    "CONFLICT": "Xung đột dữ liệu. Vui lòng kiểm tra lại."
   },
   "VALIDATION": {
     "FAILED": "Vui lòng kiểm tra và sửa các lỗi bên dưới."

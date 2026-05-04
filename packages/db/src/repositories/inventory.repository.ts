@@ -415,11 +415,16 @@ export async function findVouchersForExport(executor: QueryExecutor, options: Ex
        v.voucher_number,
        v.voucher_date,
        v.status,
+       v.unit_name,
+       v.department_name,
+       v.debit_account,
+       v.credit_account,
        v.deliverer_name,
        v.warehouse_id,
        w.code AS warehouse_code,
        w.name AS warehouse_name,
        v.total_amount_numeric,
+       v.cancel_reason,
        v.created_at,
        COALESCE(detail_stats.detail_count, 0)::int AS detail_count
      FROM inventory_vouchers v
@@ -447,6 +452,10 @@ export async function findVouchersByIdsForExport(executor: QueryExecutor, vouche
        v.voucher_number,
        v.voucher_date,
        v.status,
+       v.unit_name,
+       v.department_name,
+       v.debit_account,
+       v.credit_account,
        v.deliverer_name,
        v.warehouse_id,
        w.code AS warehouse_code,
@@ -466,6 +475,32 @@ export async function findVouchersByIdsForExport(executor: QueryExecutor, vouche
     [voucherIds],
   );
   return rows;
+}
+
+export async function getVouchersFingerprint(executor: QueryExecutor, options: Pick<ExportVouchersOptions, 'status' | 'startDate' | 'endDate' | 'voucherIds'>) {
+  const filters = buildVoucherFilters({
+    status: options.status,
+    startDate: options.startDate,
+    endDate: options.endDate,
+    ids: options.voucherIds,
+    excludeCancelledByDefault: !options.status,
+  });
+
+  const { rows } = await query(
+    executor,
+    `SELECT
+       COUNT(id) as total_count,
+       MAX(updated_at) as max_updated_at
+     FROM inventory_vouchers v
+     ${filters.whereClause}`,
+    filters.values,
+  );
+
+  const stats = rows[0];
+  const count = parseInt(stats.total_count, 10);
+  const updatedAt = stats.max_updated_at ? new Date(stats.max_updated_at).getTime() : 0;
+  
+  return `${count}-${updatedAt}`;
 }
 
 export async function findVoucherPrintDataByIds(executor: QueryExecutor, voucherIds: string[]) {

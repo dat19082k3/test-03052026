@@ -10,6 +10,7 @@
     "paths": {
       "@/*": ["./*"]
     },
+    "types": ["node"],
     "strictNullChecks": true
   },
   "include": [

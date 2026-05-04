@@ -4,7 +4,8 @@
     "UNAUTHORIZED": "You are not authorized. Please log in.",
     "FORBIDDEN": "You do not have permission to perform this action.",
     "NOT_FOUND": "The requested resource was not found.",
-    "RATE_LIMITED": "Too many requests. Please try again later."
+    "RATE_LIMITED": "Too many requests. Please try again later.",
+    "CONFLICT": "Data conflict. Please check and try again."
   },
   "VALIDATION": {
     "FAILED": "Please check the form and correct the errors below."

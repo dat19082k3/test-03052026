@@ -4,6 +4,7 @@ import {
   ErrorCode,
 } from '@repo/types';
 import * as inventoryService from '../services/inventory.service';
+import { logger } from '../utils/logger';
 
 export class InventoryController {
 
@@ -161,6 +162,7 @@ export class InventoryController {
   public async getExcelJob(req: Request<{ jobId: string }>, res: Response, next: NextFunction) {
     try {
       const result = await inventoryService.getInventoryExcelJob(req.params.jobId);
+      logger.info(`result: ${JSON.stringify(result)}`);
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error instanceof AppError ? error : new AppError(ErrorCode.COMMON.INTERNAL_ERROR, 500));

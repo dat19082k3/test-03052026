@@ -1,12 +1,12 @@
 /**
  * @type {import('node-pg-migrate').ColumnDefinitions | undefined}
  */
-export const shorthands = undefined;
+exports.shorthands = undefined;
 
 /**
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  */
-export const up = (pgm) => {
+exports.up = (pgm) => {
   pgm.sql(`
     -- Index for counting and filtering deleted vouchers
     CREATE INDEX idx_inventory_vouchers_deleted_at
@@ -28,7 +28,7 @@ export const up = (pgm) => {
 /**
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  */
-export const down = (pgm) => {
+exports.down = (pgm) => {
   pgm.sql(`
     DROP INDEX IF EXISTS idx_inventory_vouchers_deleted_at;
     DROP INDEX IF EXISTS idx_inventory_vouchers_created_at;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import React, { useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { api } from '@/api';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ async function pollImportJob(jobId: string) {
 
 export function useVoucherImport(onSuccess?: () => void) {
   const t = useTranslations('common');
+  const te = useTranslations('errors');
   const inputRef = useRef<HTMLInputElement>(null);
   const { excelClientId, isExcelBusy, setExcelBusy } = useInventoryExcelContext();
 
@@ -44,8 +45,8 @@ export function useVoucherImport(onSuccess?: () => void) {
       try {
         const started = await api.inventory.importVouchers(file, excelClientId);
         if (!started.success) {
-          const key = errorCodeToTranslationKey(started.error.code);
-          toast.error(t.has(key) ? t(key) : started.error.code, { id: toastId });
+          const key = started.error.code;
+          toast.error(te.has(key) ? te(key) : t('excel.failed'), { id: toastId });
           return;
         }
 
@@ -65,9 +66,10 @@ export function useVoucherImport(onSuccess?: () => void) {
         const imported = job.returnvalue?.imported ?? 0;
         toast.success(t('excel.importDone', { count: imported }), { id: toastId });
         onSuccess?.();
-      } catch (err) {
+      } catch (err: any) {
         console.error('Import error', err);
-        toast.error(t('excel.failed'), { id: toastId });
+        const code = err.message;
+        toast.error(te.has(code) ? te(code) : t('excel.failed'), { id: toastId });
       } finally {
         setExcelBusy(false);
       }

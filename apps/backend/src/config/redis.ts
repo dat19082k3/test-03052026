@@ -11,6 +11,8 @@ export function getRedisConnection() {
       password: config.redis.password,
       db: config.redis.db,
       maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      retryStrategy: (times) => Math.min(times * 100, 2000),
     });
   }
 

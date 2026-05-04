@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { expand } from 'dotenv-expand';
 import path from 'path';
 
 // Determine which .env file to load
@@ -9,8 +10,8 @@ const envFile = nodeEnv === 'development' ? '.env.development' : '.env';
 const localEnvPath = path.resolve(process.cwd(), envFile);
 const rootEnvPath = path.resolve(process.cwd(), '../../', envFile);
 
-dotenv.config({ path: localEnvPath });
-dotenv.config({ path: rootEnvPath });
+expand(dotenv.config({ path: localEnvPath }));
+expand(dotenv.config({ path: rootEnvPath }));
 
 export const config = {
   nodeEnv,
@@ -36,6 +37,7 @@ export const config = {
   excelImportUploadDir:
     process.env.EXCEL_IMPORT_UPLOAD_DIR || path.resolve(process.cwd(), 'storage/imports'),
   excelS3FileTtlSeconds: parseInt(process.env.EXCEL_S3_FILE_TTL_SECONDS || '1800', 10),
+  s3PublicEndpoint: process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || undefined,
   /** Public browser origin for download links (e.g. https://app.example.com). */
   publicAppOrigin: (process.env.PUBLIC_APP_ORIGIN || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, ''),
 };

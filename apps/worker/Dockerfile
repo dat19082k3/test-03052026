@@ -1,51 +1,44 @@
-FROM node:20-alpine AS deps
+# Stage 1: Prune
+FROM node:24-alpine AS base
+RUN npm install -g turbo && \
+    npm config set fetch-retry-maxtimeout 600000 && \
+    npm config set fetch-retry-mintimeout 100000 && \
+    npm config set fetch-retries 10
+
+FROM base AS pruner
 WORKDIR /app
+COPY . .
+RUN turbo prune worker --docker --out-dir=out
 
-COPY package.json package-lock.json turbo.json ./
-COPY apps/backend/package.json ./apps/backend/package.json
-COPY apps/frontend/package.json ./apps/frontend/package.json
-COPY apps/worker/package.json ./apps/worker/package.json
-COPY packages/db/package.json ./packages/db/package.json
-COPY packages/storage/package.json ./packages/storage/package.json
-COPY packages/types/package.json ./packages/types/package.json
-COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
-COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
-COPY packages/ui/package.json ./packages/ui/package.json
+# Stage 2: Build
+FROM base AS builder
+WORKDIR /app
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/package-lock.json ./package-lock.json
+RUN --mount=type=cache,target=/root/.npm-worker npm ci
+COPY --from=pruner /app/out/full/ .
+RUN npm run build --filter=worker...
 
-RUN npm ci
-
-FROM deps AS builder
-COPY apps/worker ./apps/worker
-COPY packages ./packages
-RUN npm run build -w worker
-
-FROM node:20-alpine AS runner
+# Stage 3: Runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
 
-COPY --chown=nodejs:nodejs package.json package-lock.json ./
-COPY --chown=nodejs:nodejs apps/backend/package.json ./apps/backend/package.json
-COPY --chown=nodejs:nodejs apps/frontend/package.json ./apps/frontend/package.json
-COPY --chown=nodejs:nodejs apps/worker/package.json ./apps/worker/package.json
-COPY --chown=nodejs:nodejs packages/db/package.json ./packages/db/package.json
-COPY --chown=nodejs:nodejs packages/storage/package.json ./packages/storage/package.json
-COPY --chown=nodejs:nodejs packages/types/package.json ./packages/types/package.json
-COPY --chown=nodejs:nodejs packages/typescript-config/package.json ./packages/typescript-config/package.json
-COPY --chown=nodejs:nodejs packages/eslint-config/package.json ./packages/eslint-config/package.json
-COPY --chown=nodejs:nodejs packages/ui/package.json ./packages/ui/package.json
-RUN npm ci --omit=dev --workspace worker --workspace @repo/db --workspace @repo/storage --include-workspace-root=false
-COPY --from=builder --chown=nodejs:nodejs /app/apps/worker/package.json ./apps/worker/package.json
-COPY --from=builder --chown=nodejs:nodejs /app/apps/worker/dist ./apps/worker/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/db/package.json ./packages/db/package.json
-COPY --from=builder --chown=nodejs:nodejs /app/packages/db/dist ./packages/db/dist
-COPY --from=builder --chown=nodejs:nodejs /app/packages/storage/package.json ./packages/storage/package.json
-COPY --from=builder --chown=nodejs:nodejs /app/packages/storage/dist ./packages/storage/dist
+# Copy pruned dependencies
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy app and internal packages
+COPY --from=builder /app/apps/worker/package.json ./apps/worker/package.json
+COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
+COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
+COPY --from=builder /app/packages/storage/package.json ./packages/storage/package.json
+COPY --from=builder /app/packages/storage/dist ./packages/storage/dist
 
 USER nodejs
-
 ENV WORKER_HEALTH_PORT=9090
 EXPOSE 9090
-
 CMD ["node", "apps/worker/dist/index.js"]

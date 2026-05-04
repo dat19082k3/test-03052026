@@ -8,7 +8,9 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "seed:1m": "npm run seed:prod -w backend"
+    "seed:1m": "npm run seed:prod -w backend",
+    "build:packages": "turbo run build --filter=\"./packages/*\"",
+    "reinstall": "find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' + && npm install && npm install --workspaces"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
@@ -16,7 +18,7 @@
     "typescript": "5.9.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "packageManager": "npm@11.12.1",
   "workspaces": [

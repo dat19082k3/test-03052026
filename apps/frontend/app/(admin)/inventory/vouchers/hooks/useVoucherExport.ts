@@ -23,12 +23,13 @@ async function pollExcelJob(jobId: string) {
     if (terminal.has(job.state)) {
       return job;
     }
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 5000));
   }
 }
 
 export function useVoucherExport({ selectedIds = [] }: UseVoucherExportParams = {}) {
   const t = useTranslations('common');
+  const te = useTranslations('errors');
   const { excelClientId, isExcelBusy, setExcelBusy } = useInventoryExcelContext();
 
   const exportVouchers = async (mode: InventoryVoucherExportMode) => {
@@ -49,8 +50,8 @@ export function useVoucherExport({ selectedIds = [] }: UseVoucherExportParams = 
       const result = await api.inventory.exportVouchers(dto, excelClientId);
 
       if (!result.success) {
-        const key = errorCodeToTranslationKey(result.error.code);
-        toast.error(t.has(key) ? t(key) : result.error.code, { id: toastId });
+        const key = result.error.code;
+        toast.error(te.has(key) ? te(key) : t('excel.failed'), { id: toastId });
         return;
       }
 
@@ -76,9 +77,10 @@ export function useVoucherExport({ selectedIds = [] }: UseVoucherExportParams = 
       }
 
       toast.success(t('excel.exportDone'), { id: toastId });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Export error', e);
-      toast.error(t('excel.failed'), { id: toastId });
+      const code = e.message;
+      toast.error(te.has(code) ? te(code) : t('excel.failed'), { id: toastId });
     } finally {
       setExcelBusy(false);
     }
